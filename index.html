@@ -9,7 +9,7 @@
   body { font-family: "Padauk", "Myanmar Text", sans-serif; background: #0c1f1a; color: #e8f2ee; padding: 22px 14px 34px; }
   .wrap { max-width: 520px; margin: 0 auto; }
   header { text-align: center; padding: 10px 0 4px; }
-  header .logo { font-size: 38px; }
+  header .logo { width: 118px; height: 118px; border-radius: 28px; box-shadow: 0 4px 18px rgba(0,0,0,.35); }
   h1 { font-size: 23px; margin: 6px 0 2px; }
   .sub { color: #9fc4b5; font-size: 14.5px; }
   .card { background: #123128; border: 1px solid #1f4d3d; border-radius: 14px; padding: 16px; margin-top: 16px; }
@@ -21,15 +21,18 @@
   a.pc { background: transparent; color: #9fc4b5; font-size: 14px; font-weight: normal; padding: 8px; margin-top: 4px; }
   .size { text-align: center; color: #7fa695; font-size: 12.5px; margin-top: 6px; }
   .note { text-align: center; color: #9fc4b5; font-size: 13.5px; line-height: 1.7; margin-top: 22px; }
+  .howto h2 { font-size: 17px; }
+  .howto .step { font-size: 14.5px; line-height: 1.85; margin-top: 6px; }
+  .howto .shot { width: 100%; max-width: 320px; display: block; margin: 10px auto 6px; border-radius: 10px; }
   footer { text-align: center; color: #7fa695; font-size: 12.5px; margin-top: 14px; }
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
-    <div class="logo">⚡</div>
+    <img class="logo" src="logo.jpg" alt="ATZ logo">
     <h1>ATZ App Downloads</h1>
-    <p class="sub">Transformer စစ်ဆေး App များ</p>
+    <p class="sub">လျှပ်စစ်ဆိုင်ရာ App များ</p>
   </header>
 
   <div class="card">
@@ -59,7 +62,13 @@
     <a class="btn pc" href="ATZ-InternalWiring-PC.html" download>PC / iPhone ဗားရှင်း (HTML)</a>
   </div>
 
-  <p class="note">Install: APK Download နှိပ် → ဖိုင်ပြည့်အောင် စောင့် → ဖိုင်နှိပ် → Allow → Install</p>
+  <div class="card howto">
+    <h2>📲 Install လုပ်နည်း</h2>
+    <p class="step">၁။ APK Download နှိပ် → ဖိုင်ပြည့်အောင် စောင့် → ဖိုင်နှိပ် → Install</p>
+    <p class="step">၂။ "App blocked" ပေါ်လာရင် → <b>More details</b> → <b>Install anyway</b></p>
+    <img class="shot" src="install-anyway.jpg" alt="Play Protect — More details, Install anyway">
+    <p class="for">Play Store ပြင်ပ app တိုင်း ဒီသတိပေးချက် ပေါ်ပါတယ်။</p>
+  </div>
   <footer>ATZ — Electrical Inspection Apps</footer>
 </div>
 </body>
