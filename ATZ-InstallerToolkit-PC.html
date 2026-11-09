@@ -131,7 +131,7 @@
   </div>
   <div class="row3">
     <div><label>Main cable</label><select id="hm-mat"><option value="cu" selected>Copper (Cu)</option><option value="al">Aluminium (Al)</option></select></div>
-    <div><label>မီတာ အမျိုးအစား (Max A)</label><input type="number" id="hm-metera" value="30" inputmode="decimal"></div>
+    <div><label>မီတာ အမျိုးအစား (Max A)</label><select id="hm-metera"><option value="30" selected>30 A (1-phase)</option><option value="80">80 A (3-phase)</option></select></div>
     <div></div>
   </div>
   <div class="calc-out" id="hm-out">Load ထည့်ရင် Main အရွယ်တွေ ထွက်မယ်</div>
@@ -239,7 +239,7 @@
   <button class="btn btn-clear" onclick="if(confirm('အချက်အလက်အားလုံး ဖျက်မလား?'))clearAll()">🗑 အားလုံးရှင်းမယ်</button>
 </div>
 
-<footer>ATZ • Installer Toolkit v1.3</footer>
+<footer>ATZ • Installer Toolkit v1.4</footer>
 
 <div id="print-area"></div>
 
@@ -390,6 +390,21 @@ function calcHm() {
   return s;
 }
 onIds(['hm-w', 'hm-demand', 'hm-phase', 'hm-mat', 'hm-metera'], calcHm);
+
+/* ================= v1.4: meter follows supply phase (30 A 1-phase / 80 A 3-phase) ================= */
+function syncMeterToPhase() {
+  var ph = document.getElementById('hm-phase');
+  var m = document.getElementById('hm-metera');
+  if (!ph || !m) return;
+  m.value = ph.value === '3' ? '80' : '30';
+}
+(function () {
+  var ph = document.getElementById('hm-phase');
+  if (!ph) return;
+  var h = function () { syncMeterToPhase(); calcHm(); paintCards(); };
+  ph.addEventListener('input', h);
+  ph.addEventListener('change', h);
+})();
 
 /* ================= 2. Solar home sizing ================= */
 function calcSs() {
@@ -655,6 +670,7 @@ function captureDefaults() {
 function clearAll() {
   try { localStorage.removeItem(DRAFT_KEY); } catch (e) {}
   Object.keys(DEFAULTS).forEach(function (id) { var el = document.getElementById(id); if (el) el.value = DEFAULTS[id]; });
+  syncMeterToPhase();
   document.getElementById('hl-rows').innerHTML = '';
   document.getElementById('report-text').value = '';
   document.getElementById('print-area').innerHTML = '';
@@ -676,7 +692,11 @@ function collectState() {
 function applyState(s) {
   if (!s) return;
   var f = s.f || {};
-  Object.keys(f).forEach(function (id) { var el = document.getElementById(id); if (el) el.value = f[id]; });
+  Object.keys(f).forEach(function (id) {
+    var el = document.getElementById(id); if (!el) return;
+    if (el.tagName === 'SELECT' && !Array.prototype.some.call(el.options, function (o) { return String(o.value) === String(f[id]); })) return;
+    el.value = f[id];
+  });
   var wrap = document.getElementById('hl-rows');
   wrap.innerHTML = '';
   if (!s.hl || !s.hl.length) addHlRow();
@@ -780,6 +800,7 @@ document.getElementById('save-list').addEventListener('click', function (ev) {
 
 /* ================= init ================= */
 captureDefaults();
+syncMeterToPhase();
 addHlRow();
 recalcAll();
 try {
