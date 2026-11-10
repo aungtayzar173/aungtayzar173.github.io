@@ -50,6 +50,7 @@
   .bal-bar { display:flex; justify-content:space-between; align-items:center; background:#0d2137; color:#fff; border-radius:10px; padding:13px 14px; margin-top:14px; }
   .bal-bar .bb-lbl { font-size:14px; }
   .bal-bar .bb-val { font-size:22px; font-weight:bold; }
+  .bal-bar .bb-val.sm { font-size:16.5px; }
   .bal-bar .bb-val.neg { color:#ff7070; }
   .cat-row { display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px dashed #e3e8ee; }
   .cat-row:last-child { border-bottom:none; }
@@ -88,7 +89,8 @@
     <h2>အနှစ်ချုပ်</h2>
     <div class="sum-row"><span class="lbl">ဒီနေ့</span><span><span class="in" id="t-in"></span> • <span class="out" id="t-out"></span> • <span class="bal" id="t-bal"></span></span></div>
     <div class="sum-row"><span class="lbl">ဒီလ</span><span><span class="in" id="m-in"></span> • <span class="out" id="m-out"></span> • <span class="bal" id="m-bal"></span></span></div>
-    <div class="big-bal"><div class="cap">လက်ကျန် (လက်ရှိ)</div><div class="val" id="big-bal"></div></div>
+    <div class="big-bal"><div class="cap">အသုံး လက်ကျန် (လက်ရှိ)</div><div class="val" id="big-bal"></div></div>
+    <div class="sum-row"><span class="lbl">စုငွေ</span><span>စုစုပေါင်း <span class="bal" id="big-save"></span></span></div>
   </div>
 
   <!-- Section 2: entry form -->
@@ -99,7 +101,7 @@
       <button type="button" id="type-out">ထွက်ငွေ</button>
     </div>
     <label class="f">ငွေပမာဏ (ကျပ်)</label>
-    <input type="number" id="f-amount" inputmode="numeric" placeholder="ဥပမာ 5000">
+    <input type="text" id="f-amount" inputmode="numeric" placeholder="ဥပမာ 5000">
     <label class="f">အမျိုးအစား</label>
     <select id="f-cat"></select>
     <div id="f-custom-wrap" style="display:none">
@@ -111,7 +113,7 @@
     <label class="f">ရက်စွဲ</label>
     <input type="date" id="f-date">
     <div class="hint" id="f-hint"></div>
-    <button type="button" class="btn save" id="f-save">သိမ်းမယ်</button>
+    <button type="button" class="btn save" id="f-save">ထည့်မယ်</button>
     <button type="button" class="btn ghost" id="f-cancel" style="display:none">မပြင်တော့ပါ</button>
     <button type="button" class="btn danger" id="f-del" style="display:none">ဒီ မှတ်တမ်း ဖျက်မယ်</button>
   </div>
@@ -146,12 +148,12 @@
     <button type="button" class="btn" id="btn-share">ဒီလ အနှစ်ချုပ် Share မယ်</button>
     <textarea id="share-box" readonly style="display:none"></textarea>
     <label class="f">စတင် လက်ကျန် (ကျပ်)</label>
-    <input type="number" id="s-opening" inputmode="numeric" placeholder="0">
+    <input type="text" id="s-opening" inputmode="numeric" placeholder="0">
     <button type="button" class="btn ghost" id="s-save">စတင် လက်ကျန် သိမ်းမယ်</button>
     <button type="button" class="btn danger" id="btn-clear">မှတ်တမ်း အားလုံး ရှင်းမယ်</button>
   </div>
 
-  <footer>ATZ ဝင်ငွေ ထွက်ငွေ v1.2</footer>
+  <footer>ATZ ဝင်ငွေ ထွက်ငွေ v1.4</footer>
 </div>
 <div id="print-area"></div>
 
@@ -159,11 +161,12 @@
 (function () {
   'use strict';
   var EKEY = 'atzmoney.entries.v1', SKEY = 'atzmoney.settings.v1';
-  var CATS_IN = ['ရောင်းရ', 'လစာ', 'အခြား ဝင်ငွေ'];
+  var CATS_IN = ['ရောင်းရ', 'လစာ', 'စုငွေထုတ်', 'အခြား ဝင်ငွေ'];
   var OTHER_IN = 'အခြား ဝင်ငွေ', OTHER_OUT = 'အခြား';
   function isOther(v) { return v === OTHER_IN || v === OTHER_OUT; }
   function syncCustom() { $('f-custom-wrap').style.display = isOther($('f-cat').value) ? 'block' : 'none'; }
-  var CATS_OUT = ['ဈေးဝယ်', 'စားစရိတ်', 'ခရီးစရိတ်', 'ဖုန်းဘေလ်/အင်တာနက်', 'ဆေး', 'အိမ်လခ', 'ကလေး အသုံးစရိတ်', 'ကျူရှင် လခ', 'အခြား'];
+  var CATS_OUT = ['ဈေးဝယ်', 'စားစရိတ်', 'ခရီးစရိတ်', 'ဖုန်းဘေလ်/အင်တာနက်', 'ဆေး', 'အိမ်လခ', 'ကလေး အသုံးစရိတ်', 'ကျူရှင် လခ', 'စုငွေ', 'အခြား'];
+  var SAVE_OUT = 'စုငွေ', SAVE_IN = 'စုငွေထုတ်';
   var MONTHS = ['ဇန်နဝါရီ','ဖေဖော်ဝါရီ','မတ်','ဧပြီ','မေ','ဇွန်','ဇူလိုင်','ဩဂုတ်','စက်တင်ဘာ','အောက်တိုဘာ','နိုဝင်ဘာ','ဒီဇင်ဘာ'];
   var WDAYS = ['တနင်္ဂနွေ','တနင်္လာ','အင်္ဂါ','ဗုဒ္ဓဟူး','ကြာသပတေး','သောကြာ','စနေ'];
 
@@ -212,6 +215,7 @@
   function setEditMode(id) {
     editId = id;
     $('form-title').textContent = id ? 'ပြင်ရန်' : 'ထည့်ရန်';
+    $('f-save').textContent = id ? 'ပြင်ပြီး သိမ်းမယ်' : 'ထည့်မယ်';
     $('f-cancel').style.display = id ? 'block' : 'none';
     $('f-del').style.display = id ? 'block' : 'none';
     disarmDel();
@@ -243,9 +247,15 @@
   $('f-cat').addEventListener('change', function () { disarmDel(); syncCustom(); });
   $('f-custom').addEventListener('input', disarmDel);
 
+  /* live dot-format while typing (300000000 -> 300.000.000) */
+  function fmtLive(el) { var digs = el.value.replace(/[^0-9]/g, ''); el.value = digs ? fmt(parseInt(digs, 10)) : ''; }
+  function parseAmt(v) { var s = String(v == null ? '' : v); var neg = s.replace(/^\s+/, '').charAt(0) === '-'; var digs = s.replace(/[^0-9]/g, ''); if (!digs) return NaN; var n = parseInt(digs, 10); return neg ? -n : n; }
+  $('f-amount').addEventListener('input', function () { fmtLive($('f-amount')); });
+  $('s-opening').addEventListener('input', function () { fmtLive($('s-opening')); });
+
   $('f-save').addEventListener('click', function () {
     disarmDel();
-    var amt = parseInt($('f-amount').value, 10);
+    var amt = parseAmt($('f-amount').value);
     if (!amt || isNaN(amt) || amt <= 0) { $('f-hint').textContent = 'ငွေပမာဏ မှန်အောင် ထည့်ပါ (0 ထက် ကြီးရမယ်)'; return; }
     var date = $('f-date').value || todayStr();
     var cat = $('f-cat').value, note = $('f-note').value.trim();
@@ -272,6 +282,16 @@
     entries.forEach(function (e) { if (!filterFn || filterFn(e)) { if (e.type === 'in') ti += e.amount; else to += e.amount; } });
     return { i: ti, o: to, b: ti - to };
   }
+  /* savings pot, derived from entries: စုငွေ (out) adds, စုငွေထုတ် (in) subtracts */
+  function savingsTotal(filterFn) {
+    var s = 0;
+    entries.forEach(function (e) {
+      if (filterFn && !filterFn(e)) return;
+      if (e.type === 'out' && e.category === SAVE_OUT) s += e.amount;
+      else if (e.type === 'in' && e.category === SAVE_IN) s -= e.amount;
+    });
+    return s;
+  }
 
   /* ---------- history bottom balance bar ---------- */
   function monthEndStr(ym) {
@@ -285,8 +305,10 @@
     if (!has) { bar.style.display = 'none'; bar.innerHTML = ''; return; }
     var t = totals(function (e) { return e.date <= end; });
     var bal = settings.opening + t.b;
-    var lbl = viewMonth === monthOf(todayStr()) ? 'လက်ကျန် (လက်ရှိ)' : 'လက်ကျန် (ဒီလ အဆုံး)';
-    bar.innerHTML = '<span class="bb-lbl">' + lbl + '</span><span class="bb-val' + (bal < 0 ? ' neg' : '') + '">' + fmtK(bal) + '</span>';
+    var sv = savingsTotal(function (e) { return e.date <= end; });
+    var lbl = viewMonth === monthOf(todayStr()) ? 'အသုံး လက်ကျန် (လက်ရှိ)' : 'အသုံး လက်ကျန် (ဒီလ အဆုံး)';
+    bar.innerHTML = '<span><span class="bb-lbl">' + lbl + ' </span><span class="bb-val' + (bal < 0 ? ' neg' : '') + '">' + fmtK(bal) + '</span></span>' +
+      '<span><span class="bb-lbl">စုငွေ </span><span class="bb-val sm' + (sv < 0 ? ' neg' : '') + '">' + fmtK(sv) + '</span></span>';
     bar.style.display = 'flex';
   }
 
@@ -299,6 +321,7 @@
     $('t-in').textContent = 'ဝင် ' + fmtK(t.i); $('t-out').textContent = 'ထွက် ' + fmtK(t.o); $('t-bal').textContent = 'ကျန် ' + fmtK(t.b);
     $('m-in').textContent = 'ဝင် ' + fmtK(m.i); $('m-out').textContent = 'ထွက် ' + fmtK(m.o); $('m-bal').textContent = 'ကျန် ' + fmtK(m.b);
     $('big-bal').textContent = fmtK(settings.opening + all.b);
+    $('big-save').textContent = fmtK(savingsTotal(null));
   }
 
   function renderHistory() {
@@ -335,7 +358,7 @@
     if ((formType === 'in' ? CATS_IN : CATS_OUT).indexOf(e.category) >= 0) { $('f-cat').value = e.category; $('f-custom').value = ''; }
     else { $('f-cat').value = formType === 'in' ? OTHER_IN : OTHER_OUT; $('f-custom').value = e.category; }
     syncCustom();
-    $('f-amount').value = e.amount;
+    $('f-amount').value = fmt(e.amount);
     $('f-note').value = e.note || '';
     $('f-date').value = e.date;
     $('f-hint').textContent = '';
@@ -397,6 +420,7 @@
       lines.push([e.date, e.type === 'in' ? 'ဝင်ငွေ' : 'ထွက်ငွေ', e.category, e.note || '', e.type === 'in' ? e.amount : '', e.type === 'out' ? e.amount : '', bal].map(csvCell).join(','));
     });
     lines.push(['', 'စုစုပေါင်း', '', '', ti, to, bal].map(csvCell).join(','));
+    lines.push(['', 'စုငွေ စုစုပေါင်း (ဒီလ အဆုံး)', '', '', '', '', savingsTotal(function (e) { return e.date <= monthEndStr(viewMonth); })].map(csvCell).join(','));
     return '\ufeff' + lines.join('\r\n');
   }
   $('btn-csv').addEventListener('click', function () {
@@ -426,7 +450,8 @@
     });
     rows += '<tr class="tot"><td></td><td colspan="3">စုစုပေါင်း</td><td class="n">' + fmt(ti) + '</td><td class="n">' + fmt(to) + '</td><td class="n">' + fmt(bal) + '</td></tr>';
     $('print-area').innerHTML = '<h1>ATZ ဝင်ငွေ ထွက်ငွေ</h1><div class="p-sub">' + esc(monthLabel(viewMonth)) + ' စာရင်း (ကျပ်)</div>' +
-      '<table><tr><th>ရက်စွဲ</th><th>အမျိုးအစား</th><th>ခေါင်းစဉ်</th><th>မှတ်ချက်</th><th class="n">ဝင်</th><th class="n">ထွက်</th><th class="n">လက်ကျန်</th></tr>' + rows + '</table>';
+      '<table><tr><th>ရက်စွဲ</th><th>အမျိုးအစား</th><th>ခေါင်းစဉ်</th><th>မှတ်ချက်</th><th class="n">ဝင်</th><th class="n">ထွက်</th><th class="n">လက်ကျန်</th></tr>' + rows + '</table>' +
+      '<div class="p-sub" style="margin-top:8px">စုငွေ စုစုပေါင်း (ဒီလ အဆုံး): ' + fmtK(savingsTotal(function (e) { return e.date <= monthEndStr(viewMonth); })) + '</div>';
   }
   $('btn-print').addEventListener('click', function () {
     buildStatement();
@@ -442,7 +467,7 @@
     var m = totals(function (e) { return monthOf(e.date) === viewMonth; });
     var all = totals(null);
     var text = 'ATZ ဝင်ငွေ ထွက်ငွေ — ' + monthLabel(viewMonth) + '\n' +
-      'ဝင်: ' + fmtK(m.i) + '\nထွက်: ' + fmtK(m.o) + '\nကျန်: ' + fmtK(m.b) + '\nလက်ကျန်: ' + fmtK(settings.opening + all.b);
+      'ဝင်: ' + fmtK(m.i) + '\nထွက်: ' + fmtK(m.o) + '\nကျန်: ' + fmtK(m.b) + '\nလက်ကျန်: ' + fmtK(settings.opening + all.b) + '\nစုငွေ စုစုပေါင်း: ' + fmtK(savingsTotal(null));
     var top = catTotals('out').slice(0, 3);
     if (top.length) {
       text += '\nထွက်ငွေ အများ ဆုံး: ' + top.map(function (r) { return r.cat + ' ' + fmtK(r.amt); }).join(', ');
@@ -455,9 +480,9 @@
   });
 
   /* ---------- settings + clear ---------- */
-  $('s-opening').value = settings.opening || '';
+  $('s-opening').value = settings.opening ? fmt(settings.opening) : '';
   $('s-save').addEventListener('click', function () {
-    var v = parseInt($('s-opening').value, 10);
+    var v = parseAmt($('s-opening').value);
     settings.opening = isNaN(v) ? 0 : v;
     save(SKEY, settings);
     renderAll();
@@ -471,12 +496,14 @@
   $('btn-clear').addEventListener('click', function () {
     var b = $('btn-clear');
     if (b.dataset.armed !== '1') {
-      b.dataset.armed = '1'; b.textContent = 'တကယ် ရှင်းမှာ သေချာလား? ထပ် နှိပ်ပါ'; b.classList.add('armed');
+      b.dataset.armed = '1'; b.textContent = 'တကယ် ရှင်းမှာ သေချာလား? စတင် လက်ကျန် ပါ 0 ပြန် ထား မယ် — ထပ် နှိပ်ပါ'; b.classList.add('armed');
       if (clearTimer) clearTimeout(clearTimer);
       clearTimer = setTimeout(disarmClear, 2600);
       return;
     }
     entries = []; save(EKEY, entries);
+    settings.opening = 0; save(SKEY, settings);
+    $('s-opening').value = '';
     exitEdit();
     disarmClear();
     renderAll();
