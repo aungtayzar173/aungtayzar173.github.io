@@ -147,11 +147,19 @@
     <div><label>Impedance Z (%)</label><input type="number" id="tx-z" inputmode="decimal" placeholder="%"></div>
   </div>
   <div class="calc-out" id="tx-calc">LV rated current နဲ့ Fault level ကို kVA / LV / Z% ထည့်ရင် auto တွက်ပြမယ်</div>
-  <div class="row2">
+  <div class="row3">
     <div><label>MDB Main MCCB (A)</label><input type="number" id="tx-mccb-a" inputmode="decimal" placeholder="A"></div>
+    <div><label>Pole</label><select id="tx-mccb-pole"><option value="">—</option><option value="3P">3P</option><option value="4P">4P</option></select></div>
     <div><label>MCCB Icu (kA)</label><input type="number" id="tx-mccb-icu" inputmode="decimal" placeholder="kA"></div>
   </div>
   <div class="hint" id="tx-mccb-out"></div>
+  <h3 style="margin:14px 0 4px;font-size:14px;color:#0d2137;">Tr → LV Breaker Cable</h3>
+  <div class="earth-row">
+    <div><label>Cable size (mm²)</label><select id="tx-lvc-cable"></select></div>
+    <div><label>Material</label><select id="tx-lvc-mat"><option value="">—</option><option value="cu">Cu</option><option value="al">Al</option></select></div>
+    <div class="eb"><span class="badge na" id="badge-lvc">–</span></div>
+  </div>
+  <div class="hint" id="tx-lvc-out"></div>
   <h3 style="margin:14px 0 4px;font-size:14px;color:#0d2137;">Earth တိုင်းတာမှု (Ω)</h3>
   <div class="earth-row">
     <div><label>Body (Ω)</label><input type="number" id="tx-e-body" inputmode="decimal"></div>
@@ -183,6 +191,18 @@
     <div><label>B phase</label><select id="dof-b"><option value="">—</option><option value="yes">ပါတယ်</option><option value="no">မပါဘူး</option></select></div>
   </div>
   <div class="hint" id="dof-out"></div>
+  <h3 style="margin:14px 0 4px;font-size:14px;color:#0d2137;">ခြံဝန်း အတွင်း စစ်ဆေးချက်</h3>
+  <div class="row2">
+    <div><label>ခြံဝန်း အတွင်း ခြုံနွယ်</label><select id="tx-bush"><option value="">— ရွေးပါ —</option><option value="yes">ရှိ</option><option value="no">မရှိ</option></select></div>
+    <div><label>Danger ဆိုင်းပုဒ်</label><select id="tx-danger"><option value="">— ရွေးပါ —</option><option value="yes">ပါ</option><option value="no">မပါ</option></select></div>
+  </div>
+  <div class="hint" id="tx-compound-out"></div>
+</div>
+
+<div class="card" id="card-iz">
+  <h2>⚙️ Cable Iz လမ်းညွှန် (A) — Cu / Al <span class="fillcount" id="iz-count"></span></h2>
+  <div class="hint">IEC 60364-5-52 မိသားစု guide တန်ဖိုးများ (Factory / ≥500 app နှင့် အတူတူ) — ပြင်လို့ရတယ်။ Tr → LV Breaker Cable စစ်ဆေးမှုတွင် သုံးတယ် (breaker ≤ Iz)</div>
+  <div class="setgrid" id="iz-grid"></div>
 </div>
 
 <div class="card">
@@ -243,6 +263,30 @@
   <button class="btn btn-add" onclick="addLoadRow()">＋ Load point ထည့်မယ်</button>
 </div>
 
+<div class="card" id="card-lp">
+  <h2>⚡ မိုးကြိုးလွှဲ (Lightning Protection) <span class="badge na" id="badge-lp">–</span></h2>
+  <label>မိုးကြိုးလွှဲ တပ်ဆင်ထားမှု</label>
+  <select id="lp-has">
+    <option value="">— ရွေးပါ —</option>
+    <option value="yes">ရှိတယ်</option>
+    <option value="no">မရှိ</option>
+  </select>
+  <div id="lp-fields" style="display:none">
+    <label>အမျိုးအစား</label>
+    <select id="lp-type">
+      <option value="">— ရွေးပါ —</option>
+      <option value="ese">ESE</option>
+      <option value="air">Air terminal (conventional)</option>
+    </select>
+    <div class="earth-row">
+      <div><label>L.A Earth (Ω)</label><input type="number" id="lp-la" inputmode="decimal"></div>
+      <div><label>စံ ≤ (Ω)</label><input type="number" id="lp-lim" class="recalc" value="10" inputmode="decimal"></div>
+      <div class="eb"><span class="badge na" id="badge-lp-la">–</span></div>
+    </div>
+  </div>
+  <div class="hint" id="lp-out"></div>
+</div>
+
 <div class="card" id="card-room">
   <h2>🚪 အဆင့် ၃ · အခန်းလိုက် စစ်ဆေးချက် <span class="badge na" id="badge-room">–</span></h2>
   <div class="row2">
@@ -280,7 +324,7 @@
   <button class="btn btn-clear" onclick="if(confirm('အချက်အလက်အားလုံး ဖျက်မလား?'))clearAll()">🗑 အားလုံးရှင်းမယ်</button>
 </div>
 
-<footer>ATZ • Internal Wiring Check v1.4</footer>
+<footer>ATZ • Internal Wiring Check v1.6</footer>
 
 <div id="print-area"></div>
 
@@ -385,10 +429,11 @@ function evalAll() {
   var cb = evalCbRows();
   var ld = evalLoads();
   var tx = evalTx();
+  var lp = evalLp();
   var rm = evalRooms();
   var ov = document.getElementById('overall');
-  var anyFail = Object.keys(state).some(function (k) { return state[k] === 'fail'; }) || cb.fail > 0 || tx.fail > 0 || rm.fail > 0;
-  var anyPass = Object.keys(state).some(function (k) { return state[k] === 'pass'; }) || cb.pass > 0 || tx.pass > 0 || rm.pass > 0 || ld.pass > 0;
+  var anyFail = Object.keys(state).some(function (k) { return state[k] === 'fail'; }) || cb.fail > 0 || tx.fail > 0 || lp.fail > 0 || rm.fail > 0;
+  var anyPass = Object.keys(state).some(function (k) { return state[k] === 'pass'; }) || cb.pass > 0 || tx.pass > 0 || lp.pass > 0 || rm.pass > 0 || ld.pass > 0;
   if (!anyFail && !anyPass) { ov.style.display = 'none'; paintStates(); return; }
   ov.style.display = 'block';
   if (anyFail) {
@@ -429,6 +474,13 @@ function txCardState() {
     any = true;
     if (dofs.indexOf('no') >= 0) fail = true; else passN++;
   }
+  /* Compound checks (v1.6): ခြုံနွယ် ရှိ = FAIL, Danger ဆိုင်းပုဒ် မပါ = FAIL */
+  [['tx-bush', 'yes'], ['tx-danger', 'no']].forEach(function (pair) {
+    var v = document.getElementById(pair[0]).value;
+    if (!v) { complete = false; return; }
+    any = true;
+    if (v === pair[1]) fail = true; else passN++;
+  });
   var icu = num('tx-mccb-icu');
   if (isFinite(icu)) {
     any = true;
@@ -436,7 +488,18 @@ function txCardState() {
     if (!isFinite(cc.faultkA)) complete = false;
     else if (icu >= cc.faultkA) passN++; else fail = true;
   }
-  ['tx-maker', 'tx-serial', 'tx-kva', 'tx-year', 'tx-hv', 'tx-lv', 'tx-vector', 'tx-z', 'tx-mccb-a', 'tx-e-cable'].forEach(function (id) {
+  /* Tr → LV Breaker cable: counts only when fully judged (never gates completeness) */
+  var lvcSzS = document.getElementById('tx-lvc-cable').value, lvcMtS = document.getElementById('tx-lvc-mat').value;
+  var lvcIzS = (lvcSzS && lvcMtS) ? getIz(lvcMtS, lvcSzS) : NaN;
+  var mccbAS = num('tx-mccb-a');
+  if (isFinite(lvcIzS) && isFinite(mccbAS)) {
+    var ccL = txCalc();
+    if (isFinite(ccL.rated)) {
+      any = true;
+      if (lvcIzS >= mccbAS && lvcIzS >= ccL.rated) passN++; else fail = true;
+    }
+  } else if (lvcSzS || lvcMtS) any = true;
+  ['tx-maker', 'tx-serial', 'tx-kva', 'tx-year', 'tx-hv', 'tx-lv', 'tx-vector', 'tx-z', 'tx-mccb-a', 'tx-mccb-pole', 'tx-lvc-cable', 'tx-lvc-mat', 'tx-e-cable'].forEach(function (id) {
     if (document.getElementById(id).value.trim() !== '') any = true;
   });
   document.querySelectorAll('#tx-card .tx-note').forEach(function (el) { if (el.value.trim() !== '') any = true; });
@@ -480,6 +543,16 @@ function rmJudge(row) {
   var judged = b.classList.contains('pass') || b.classList.contains('fail');
   return { judged: judged, fail: b.classList.contains('fail'), touched: judged };
 }
+function lpCardState() {
+  var has = document.getElementById('lp-has').value;
+  if (!has) return '';
+  if (has === 'no') return 'fail';
+  var type = document.getElementById('lp-type').value;
+  var la = num('lp-la'), lim = num('lp-lim'); if (!isFinite(lim)) lim = 10;
+  if (isFinite(la) && la > lim) return 'fail';
+  if (type && isFinite(la)) return 'pass';
+  return 'edit';
+}
 function visualState(si) {
   var sec = SECTIONS[si], p = 0, f = 0, ticked = 0, any = false;
   sec.items.forEach(function (_, ii) {
@@ -503,9 +576,21 @@ function paintStates() {
   var cnt = document.getElementById('info-count');
   if (cnt) cnt.textContent = n > 0 ? 'ဖြည့်ပြီး ' + n + '/' + infoIds.length : '';
   setCardState(document.getElementById('card-info'), n === 0 ? '' : n === infoIds.length ? 'done' : 'edit');
+  var izn = 0, izt = 0;
+  CB_SIZES.forEach(function (s) {
+    ['cu', 'al'].forEach(function (m) {
+      izt++;
+      var iel = document.getElementById(izId(m, s));
+      if (iel && iel.value.trim() !== '') izn++;
+    });
+  });
+  var izc = document.getElementById('iz-count');
+  if (izc) izc.textContent = izn > 0 ? 'ဖြည့်ပြီး ' + izn + '/' + izt : '';
+  setCardState(document.getElementById('card-iz'), izn === 0 ? '' : izn === izt ? 'done' : 'edit');
   setCardState(document.getElementById('tx-card'), txCardState());
   setCardState(document.getElementById('card-cb'), rowsState('#cb-rows', cbJudge));
   setCardState(document.getElementById('card-load'), rowsState('#load-rows', ldJudge));
+  setCardState(document.getElementById('card-lp'), lpCardState());
   setCardState(document.getElementById('card-room'), rowsState('#room-rows', rmJudge));
   SECTIONS.forEach(function (_, si) {
     setCardState(document.getElementById('vcard-' + si), visualState(si));
@@ -533,6 +618,42 @@ function cbMax(cable) {
   var el = document.getElementById("cbmax-" + cable.replace(".", "_"));
   var v = el ? parseFloat(el.value) : NaN;
   return isFinite(v) ? v : CB_DEFAULTS[cable];
+}
+
+/* ================= Cable Iz guide table (editable) =================
+   Values copied from the ≥500 app / Factory app — IEC 60364-5-52 family
+   guide values. Used by the Tr → LV Breaker cable check (breaker ≤ Iz). */
+var IZ_TABLE = {
+  cu: { "1.5": 17, "2.5": 23, "4": 30, "6": 38, "10": 52, "16": 69, "25": 90, "35": 111, "50": 135, "70": 172, "95": 208, "120": 240, "150": 273, "185": 340, "240": 398, "300": 455 },
+  al: { "1.5": 13, "2.5": 18, "4": 24, "6": 30, "10": 41, "16": 54, "25": 71, "35": 87, "50": 106, "70": 135, "95": 164, "120": 189, "150": 215, "185": 273, "240": 319, "300": 365 }
+};
+function izId(mat, size) { return 'iz-' + mat + '-' + size.replace('.', '_'); }
+function getIz(mat, size) {
+  var el = document.getElementById(izId(mat, size));
+  var v = el ? parseFloat(el.value) : NaN;
+  if (isFinite(v)) return v;
+  var t = IZ_TABLE[mat]; return t && t[size] !== undefined ? t[size] : NaN;
+}
+function renderIzGrid() {
+  var g = document.getElementById('iz-grid'), h = '';
+  for (var i = 0; i < CB_SIZES.length; i += 2) {
+    h += '<div class="row2">';
+    [0, 1].forEach(function (o) {
+      var s = CB_SIZES[i + o];
+      if (!s) { h += '<div></div>'; return; }
+      h += '<div><label>' + s + ' mm² — Cu / Al (A)</label><div class="row2">' +
+        '<div><input type="number" id="' + izId('cu', s) + '" value="' + IZ_TABLE.cu[s] + '" inputmode="decimal"></div>' +
+        '<div><input type="number" id="' + izId('al', s) + '" value="' + IZ_TABLE.al[s] + '" inputmode="decimal"></div></div></div>';
+    });
+    h += '</div>';
+  }
+  g.innerHTML = h;
+}
+function renderLvcOpts() {
+  var sel = document.getElementById('tx-lvc-cable');
+  sel.innerHTML = '<option value="">—</option>' + CB_SIZES.map(function (z) {
+    return '<option value="' + z + '">' + z + '</option>';
+  }).join('');
 }
 
 function addCbRow() {
@@ -774,6 +895,31 @@ function evalTx() {
   if (isFinite(mccbA) && isFinite(c.rated) && mccbA > c.rated)
     mTxt += (mTxt ? " | " : "") + "⚠ MCCB " + mccbA + " A က transformer LV rated " + f1(c.rated) + " A ထက် ကြီးနေတယ်";
   mOut.textContent = mTxt;
+  /* Tr → LV Breaker cable — standing cable↔breaker rule: cable passes only if
+     Iz ≥ LV breaker rating AND Iz ≥ transformer LV rated current.
+     Judged only when breaker + cable + kVA + LV are all present; otherwise
+     unjudged with a hint (same pattern as the MCCB/Icu check). */
+  var lvcSize = document.getElementById("tx-lvc-cable").value,
+      lvcMat = document.getElementById("tx-lvc-mat").value;
+  var lvcIz = (lvcSize && lvcMat) ? getIz(lvcMat, lvcSize) : NaN;
+  var lvcB = document.getElementById("badge-lvc"), lvcOut = document.getElementById("tx-lvc-out"), lvcTxt = "";
+  if (isFinite(mccbA) && isFinite(lvcIz) && isFinite(c.rated)) {
+    var lvcProbs = [];
+    if (lvcIz < mccbA) lvcProbs.push("Iz " + lvcIz + " A < LV Breaker " + mccbA + " A");
+    if (lvcIz < c.rated) lvcProbs.push("Iz " + lvcIz + " A < LV rated " + f1(c.rated) + " A");
+    if (lvcProbs.length) { fail++; lvcB.className = "badge fail"; lvcB.textContent = "FAIL ✗"; lvcTxt = "⚠️ Tr → LV Breaker cable: " + lvcProbs.join(" | "); }
+    else { pass++; lvcB.className = "badge pass"; lvcB.textContent = "PASS ✓"; lvcTxt = "✓ Tr → LV Breaker cable: Iz " + lvcIz + " A ≥ LV Breaker " + mccbA + " A နဲ့ LV rated " + f1(c.rated) + " A — PASS"; }
+  } else {
+    lvcB.className = "badge na"; lvcB.textContent = "–";
+    if (lvcSize || lvcMat || isFinite(mccbA)) {
+      var lvcMiss = [];
+      if (!lvcSize || !lvcMat) lvcMiss.push("Cable size / Material");
+      if (!isFinite(mccbA)) lvcMiss.push("LV Breaker (MCCB A)");
+      if (!isFinite(c.rated)) lvcMiss.push("Rating (kVA) နဲ့ LV (V)");
+      lvcTxt = "Tr → LV Breaker cable စစ်ဆေးရန်: " + lvcMiss.join("၊ ") + " လိုသေးတယ်";
+    }
+  }
+  lvcOut.textContent = lvcTxt;
   TX_ITEMS.forEach(function (it) {
     if (txstate[it[0]] === 'fail') fail++;
     else if (txstate[it[0]] === 'pass') pass++;
@@ -783,11 +929,59 @@ function evalTx() {
   if (dofs.indexOf("no") >= 0) { fail++; dOut.textContent = "⚠️ Fuse element မပါတဲ့ phase ရှိတယ် — defect မှတ်ပါ"; }
   else if (dofs.every(function (d) { return d === "yes"; })) { pass++; dOut.textContent = "✓ ၃ phase လုံး fuse element ပါတယ်"; }
   else dOut.textContent = "";
+  /* Compound checks (v1.6 — Factory S1 model): vegetation INSIDE the compound
+     (ခြုံနွယ် ရှိ) is the FAIL condition; a missing Danger sign (မပါ) is FAIL. */
+  var bush = document.getElementById("tx-bush").value, danger = document.getElementById("tx-danger").value;
+  var cOut = document.getElementById("tx-compound-out"), cTxt = "";
+  if (bush === "yes") { fail++; cTxt = "⚠️ ခြံဝန်း အတွင်း ခြုံနွယ် ရှိ — ရှင်းလင်းရန် လို"; }
+  else if (bush === "no") pass++;
+  if (danger === "no") { fail++; cTxt += (cTxt ? " | " : "") + "⚠️ Danger ဆိုင်းပုဒ် မပါ — တပ်ဆင်ရန် လို"; }
+  else if (danger === "yes") pass++;
+  cOut.textContent = cTxt;
   var sb = document.getElementById("badge-tx");
   var v2 = fail > 0 ? "fail" : pass > 0 ? "pass" : "na";
   sb.className = "badge " + v2;
   sb.textContent = v2 === "pass" ? "PASS ✓" : v2 === "fail" ? "FAIL ✗" : "–";
   return { pass: pass, fail: fail };
+}
+
+/* ================= Lightning Protection (v1.6 — Factory S4 model) =================
+   L.A-field arrangement: the transformer card keeps its own quick L.A earth
+   row (tx-e-la, part of the rough-check earth set, Factory S1-style). This
+   section carries the lightning system's OWN L.A record (lp-la, judged
+   ≤ 10 Ω on its editable limit) — the same arrangement as the Factory app
+   (S1 L.A row + S4 lightning record). Neither field overwrites the other. */
+function evalLp() {
+  var has = document.getElementById('lp-has').value;
+  var fields = document.getElementById('lp-fields');
+  var out = document.getElementById('lp-out');
+  var sb = document.getElementById('badge-lp');
+  var eb = document.getElementById('badge-lp-la');
+  fields.style.display = has === 'yes' ? '' : 'none';
+  if (!has) {
+    sb.className = 'badge na'; sb.textContent = '–';
+    eb.className = 'badge na'; eb.textContent = '–';
+    out.textContent = '';
+    return { pass: 0, fail: 0 };
+  }
+  if (has === 'no') {
+    /* မရှိ = FAIL finding (missing lightning protection is a defect) */
+    sb.className = 'badge fail'; sb.textContent = 'FAIL ✗';
+    eb.className = 'badge na'; eb.textContent = '–';
+    out.textContent = '⚠️ မိုးကြိုးလွှဲ မတပ်ထားပါ — defect မှတ်ပါ';
+    return { pass: 0, fail: 1 };
+  }
+  var type = document.getElementById('lp-type').value;
+  var la = num('lp-la'), lim = num('lp-lim'); if (!isFinite(lim)) lim = 10;
+  var fail = 0, judgedPass = 0;
+  if (!isFinite(la)) { eb.className = 'badge na'; eb.textContent = '–'; }
+  else if (la > lim) { fail = 1; eb.className = 'badge fail'; eb.textContent = 'FAIL ✗'; }
+  else { judgedPass = 1; eb.className = 'badge pass'; eb.textContent = 'PASS ✓'; }
+  out.textContent = fail ? '⚠️ L.A Earth ' + la + ' Ω က စံ ≤' + lim + ' Ω ကျော်နေတယ်' : '';
+  var v = fail ? 'fail' : (type && judgedPass) ? 'pass' : 'na';
+  sb.className = 'badge ' + v;
+  sb.textContent = v === 'pass' ? 'PASS ✓' : v === 'fail' ? 'FAIL ✗' : '–';
+  return { pass: v === 'pass' ? 1 : 0, fail: fail };
 }
 
 /* ================= Room-by-room ================= */
@@ -890,7 +1084,7 @@ function makeReport() {
   t += 'Report No: ' + no + ' | Date: ' + date + ' | Factory: ' + proj + ' | Location: ' + loc + '\n';
   t += 'Inspector: ' + insp + '\n\n';
   var anyFail = false, anyPass = false;
-  var chkT = '', cbT = '', ldT = '', txT = '', rmT = '';
+  var chkT = '', cbT = '', ldT = '', txT = '', rmT = '', lpT = '';
   SECTIONS.forEach(function (sec, si) {
     var v = sectionVerdict(si);
     if (v === 'fail') anyFail = true;
@@ -966,16 +1160,31 @@ function makeReport() {
   });
   var ecab = document.getElementById('tx-e-cable').value.trim();
   if (ecab) txLines.push('  Earth cable: ' + ecab);
-  var mA2 = num('tx-mccb-a'), icu2 = num('tx-mccb-icu');
-  if (isFinite(mA2) || isFinite(icu2)) {
+  var mA2 = num('tx-mccb-a'), icu2 = num('tx-mccb-icu'), mPole = document.getElementById('tx-mccb-pole').value;
+  if (isFinite(mA2) || isFinite(icu2) || mPole) {
     txAny = true;
-    var mline = '  MDB Main MCCB: ' + (isFinite(mA2) ? mA2 + ' A' : '—') + ' | Icu ' + (isFinite(icu2) ? icu2 + ' kA' : '—');
+    var mline = '  MDB Main MCCB: ' + (isFinite(mA2) ? mA2 + ' A' : '—') + (mPole ? ', ' + mPole : '') + ' | Icu ' + (isFinite(icu2) ? icu2 + ' kA' : '—');
     if (isFinite(icu2) && isFinite(txc.faultkA)) {
       var mr = icu2 >= txc.faultkA ? 'PASS' : 'FAIL';
       if (mr === 'FAIL') txFail = true;
       mline += ' (fault ' + f1(txc.faultkA) + ' kA) : ' + mr;
     }
     txLines.push(mline);
+  }
+  var lvcSz2 = document.getElementById('tx-lvc-cable').value, lvcMt2 = document.getElementById('tx-lvc-mat').value;
+  if (lvcSz2 && lvcMt2) {
+    txAny = true;
+    var lvcIz3 = getIz(lvcMt2, lvcSz2);
+    var lline = '  Tr → LV Breaker Cable: ' + lvcSz2 + ' mm² ' + (lvcMt2 === 'cu' ? 'Cu' : 'Al') +
+      ' | Iz ' + (isFinite(lvcIz3) ? lvcIz3 : '—') + ' A';
+    if (isFinite(mA2)) lline += ' | LV Breaker ' + mA2 + ' A';
+    if (isFinite(txc.rated)) lline += ' | LV rated ' + f1(txc.rated) + ' A';
+    if (isFinite(mA2) && isFinite(lvcIz3) && isFinite(txc.rated)) {
+      var lres = (lvcIz3 >= mA2 && lvcIz3 >= txc.rated) ? 'PASS' : 'FAIL';
+      if (lres === 'FAIL') txFail = true;
+      lline += ' : ' + lres;
+    }
+    txLines.push(lline);
   }
   TX_ITEMS.forEach(function (it) {
     var s = txstate[it[0]];
@@ -992,6 +1201,19 @@ function makeReport() {
     if (dofRes === 'FAIL') txFail = true;
     var yn = function (v) { return v === 'yes' ? 'ပါ' : v === 'no' ? 'မပါ' : '—'; };
     txLines.push('  DOF fuse element: R ' + yn(dofVals.R) + ' / Y ' + yn(dofVals.Y) + ' / B ' + yn(dofVals.B) + ' : ' + dofRes);
+  }
+  var bushV = document.getElementById('tx-bush').value, dangerV = document.getElementById('tx-danger').value;
+  if (bushV) {
+    txAny = true;
+    var bRes = bushV === 'yes' ? 'FAIL' : 'PASS';
+    if (bRes === 'FAIL') txFail = true;
+    txLines.push('  ခြံဝန်း အတွင်း ခြုံနွယ်: ' + (bushV === 'yes' ? 'ရှိ' : 'မရှိ') + ' : ' + bRes);
+  }
+  if (dangerV) {
+    txAny = true;
+    var dRes = dangerV === 'no' ? 'FAIL' : 'PASS';
+    if (dRes === 'FAIL') txFail = true;
+    txLines.push('  Danger ဆိုင်းပုဒ်: ' + (dangerV === 'yes' ? 'ပါ' : 'မပါ') + ' : ' + dRes);
   }
   if (txLines.length) {
     txT += '[Transformer] Supply Transformer (အကြမ်းစစ်) → ' + (txFail ? 'FAIL' : txAny ? 'PASS' : '—') + '\n';
@@ -1021,14 +1243,30 @@ function makeReport() {
     rmLines.forEach(function (ln) { rmT += ln + '\n'; });
     if (rmFail) anyFail = true; else anyPass = true;
   }
-  t += txT + cbT + ldT + rmT + chkT;
+  // ---- Lightning (v1.6) ----
+  var lpHas = document.getElementById('lp-has').value;
+  if (lpHas === 'no') {
+    anyFail = true;
+    lpT += '[Lightning] မိုးကြိုးလွှဲ → FAIL\n';
+    lpT += '  မိုးကြိုးလွှဲ: မရှိ : FAIL\n';
+  } else if (lpHas === 'yes') {
+    var lt = document.getElementById('lp-type').value;
+    var lla = num('lp-la'), llim = num('lp-lim'); if (!isFinite(llim)) llim = 10;
+    var lpFail2 = isFinite(lla) && lla > llim;
+    var lpPass2 = !!lt && isFinite(lla) && !lpFail2;
+    if (lpFail2) anyFail = true; else if (lpPass2) anyPass = true;
+    lpT += '[Lightning] မိုးကြိုးလွှဲ → ' + (lpFail2 ? 'FAIL' : lpPass2 ? 'PASS' : '—') + '\n';
+    lpT += '  အမျိုးအစား: ' + (lt === 'ese' ? 'ESE' : lt === 'air' ? 'Air terminal' : '—') +
+      (isFinite(lla) ? ' | L.A Earth: ' + lla + ' Ω (စံ ≤' + llim + ') : ' + (lla > llim ? 'FAIL' : 'PASS') : '') + '\n';
+  }
+  t += txT + cbT + ldT + lpT + rmT + chkT;
   t += '\nစုစုပေါင်းရလဒ်: ' + (anyFail ? 'FAIL' : anyPass ? 'PASS' : '—') + '\n';
   t += 'Checked By: ' + checked + '\n';
   document.getElementById('report-text').value = t;
   buildPrintArea(t, checked);
 }
 
-function boldNumsEsc(h) { return h.replace(/(\d[\d,]*(?:\.\d+)?)/g, '<b>$1</b>'); }
+function boldNumsEsc(h) { return h.replace(/(\d[\d,]*(?:\.\d+)?P|\d[\d,]*(?:\.\d+)?)/g, '<b>$1</b>'); }
 function boldInfoLine(ln) {
   return ln.split(' | ').map(function (seg) {
     var i = seg.indexOf(': ');
@@ -1100,10 +1338,19 @@ function clearAll() {
   try { localStorage.removeItem(DRAFT_KEY); } catch (e) {}
   state = {};
   txstate = {};
+  CB_SIZES.forEach(function (s) {
+    ['cu', 'al'].forEach(function (m) {
+      var iel = document.getElementById(izId(m, s));
+      if (iel) iel.value = IZ_TABLE[m][s];
+    });
+  });
   document.querySelectorAll('input[type=text]').forEach(function (i) { i.value = ''; });
   document.querySelectorAll('.tgl').forEach(function (b) { b.classList.remove('on-pass','on-fail','on-na'); });
   document.querySelectorAll('#tx-card input[type=number]').forEach(function (i) { i.value = ''; });
   document.querySelectorAll('#tx-card select').forEach(function (s) { s.selectedIndex = 0; });
+  document.querySelectorAll('#card-lp input[type=number]').forEach(function (i) { i.value = ''; });
+  document.querySelectorAll('#card-lp select').forEach(function (s) { s.selectedIndex = 0; });
+  document.getElementById('lp-lim').value = '10';
   document.getElementById('cb-rows').innerHTML = '';
   document.getElementById('load-rows').innerHTML = '';
   document.getElementById('room-rows').innerHTML = '';
@@ -1121,6 +1368,10 @@ document.querySelectorAll('.recalc').forEach(function (el) {
   el.addEventListener('input', evalAll);
 });
 document.querySelectorAll('#tx-card input, #tx-card select').forEach(function (el) {
+  el.addEventListener('input', evalAll);
+  el.addEventListener('change', evalAll);
+});
+document.querySelectorAll('#card-lp input, #card-lp select').forEach(function (el) {
   el.addEventListener('input', evalAll);
   el.addEventListener('change', evalAll);
 });
@@ -1360,6 +1611,11 @@ document.getElementById('save-list').addEventListener('click', function (ev) {
 
 renderSections();
 renderTxToggles();
+renderIzGrid();
+renderLvcOpts();
+document.querySelectorAll('[id^="iz-"]').forEach(function (el) {
+  el.addEventListener('input', evalAll);
+});
 addCbRow();
 addLoadRow();
 addRoomRow();
