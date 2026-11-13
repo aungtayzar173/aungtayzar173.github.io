@@ -49,6 +49,7 @@
   .btn-copy { background: #0d2137; color: #fff; }
   .btn-print { background: #b37700; color: #fff; }
   .btn-clear { background: #eee; color: #333; }
+  .btn-armed { background: #e03131 !important; color: #fff !important; }
   #report-text { width: 100%; height: 260px; font-size: 12px; font-family: monospace;
     border: 1px solid #ccc; border-radius: 6px; padding: 8px; }
   .hint { font-size: 12px; color: #666; }
@@ -70,6 +71,7 @@
   .saved-actions { display: flex; gap: 8px; }
   .saved-actions button { flex: 1; padding: 9px 0; font-size: 14px; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; background: #e8f0fe; color: #0d2137; }
   .saved-actions button[data-act="del"] { background: #ffd9d9; color: #a00; }
+  .saved-search { margin: 10px 0 2px; }
   .setgrid label { font-size: 12px; }
   .sugg { font-size: 13px; color: #7a4d00; background: #fff8e1; border-radius: 6px;
     padding: 8px; margin-top: 8px; line-height: 1.5; }
@@ -235,11 +237,12 @@
   <div class="hint">ဖြည့်နေရင်း auto save ဖြစ်တယ် — app ပိတ်/ပြန်ဖွင့်ရင် ဆက်ဖြည့်လို့ရတယ်</div>
   <button class="btn" id="btn-save" type="button">💾 Report သိမ်းမယ် (Save)</button>
   <button class="btn" id="btn-showlist" type="button" onclick="toggleSaveList()">📂 သိမ်းထားတာတွေ ကြည့်မယ်</button>
+  <input type="text" class="saved-search" placeholder="🔍 အမည် / W / ရက်စွဲ ဖြင့် ရှာမယ်" style="display:none">
   <div id="save-list" style="display:none"></div>
-  <button class="btn btn-clear" onclick="if(confirm('အချက်အလက်အားလုံး ဖျက်မလား?'))clearAll()">🗑 အားလုံးရှင်းမယ်</button>
+  <button class="btn btn-clear" id="btn-clear" type="button">🗑 အားလုံးရှင်းမယ်</button>
 </div>
 
-<footer>ATZ • Installer Toolkit v1.4</footer>
+<footer>ATZ • Installer Toolkit v1.7</footer>
 
 <div id="print-area"></div>
 
@@ -654,7 +657,13 @@ function copyReport() {
   ta.select();
   try { document.execCommand('copy'); } catch (e) {}
   if (navigator.clipboard) navigator.clipboard.writeText(ta.value);
-  alert('✓ ကူးယူပြီးပြီ — paste ချပါ');
+  /* in-app feedback (button flash) — no native dialog: native dialogs are
+     dead in this WebView shell */
+  var b = document.querySelector('.btn-copy');
+  if (b) {
+    b.textContent = '✓ ကူးယူပြီးပြီ — paste ချပါ';
+    setTimeout(function () { b.textContent = '📋 Report ကူးမယ်'; }, 2600);
+  }
 }
 function printPDF() {
   makeReport();
@@ -677,6 +686,27 @@ function clearAll() {
   addHlRow();
   recalcAll();
 }
+/* tap-twice arm for the destructive clear button (no native dialog —
+   native dialogs are dead in this WebView shell) */
+var clearArmTimer = null;
+var CLEAR_LABEL = '🗑 အားလုံးရှင်းမယ်';
+document.getElementById('btn-clear').addEventListener('click', function () {
+  var b = this;
+  if (!b.classList.contains('btn-armed')) {
+    b.classList.add('btn-armed');
+    b.textContent = 'တကယ် အားလုံး ရှင်းမလား? ထပ်နှိပ်ပါ';
+    clearTimeout(clearArmTimer);
+    clearArmTimer = setTimeout(function () {
+      b.classList.remove('btn-armed');
+      b.textContent = CLEAR_LABEL;
+    }, 3500);
+    return;
+  }
+  clearTimeout(clearArmTimer);
+  b.classList.remove('btn-armed');
+  b.textContent = CLEAR_LABEL;
+  clearAll();
+});
 
 /* ================= Saving ================= */
 var DRAFT_KEY = 'atzinstaller.draft.v1';
@@ -721,7 +751,21 @@ function autoTitle() {
   parts.push(new Date().toLocaleString());
   return 'ATZ Installer • ' + parts.join(' • ');
 }
+function savedQuery() {
+  var el = document.querySelector('.saved-search');
+  return el ? String(el.value || '').trim().toLowerCase() : '';
+}
+function entryMatches(e, q) {
+  if (!q) return true;
+  var dt = '';
+  try { dt = new Date(e.savedAt).toLocaleString(); } catch (x) {}
+  var hay = ((e.title || '') + ' ' + dt + ' ' + (e.savedAt || '')).toLowerCase();
+  return hay.indexOf(q) !== -1;
+}
+var armedDeleteId = null, armedDeleteTimer = null;
 function renderSaved() {
+  armedDeleteId = null;   /* any re-render disarms a pending delete tap */
+  clearTimeout(armedDeleteTimer);
   var list = loadSaved();
   var cnt = document.getElementById('saved-count');
   if (cnt) cnt.textContent = String(list.length);
@@ -731,8 +775,14 @@ function renderSaved() {
     box.innerHTML = '<div class="hint" style="margin-top:8px">သိမ်းထားတဲ့ Report မရှိသေးပါ — တွက်ချက်ပြီး «💾 Report သိမ်းမယ် (Save)» နှိပ်ပါ</div>';
     return;
   }
+  var q = savedQuery();
+  var shown = list.filter(function (e) { return entryMatches(e, q); });
+  if (!shown.length) {
+    box.innerHTML = '<div class="hint" style="margin-top:8px">🔍 «' + esc(q) + '» နဲ့ ကိုက်ညီတဲ့ မှတ်တမ်း မတွေ့ပါ</div>';
+    return;
+  }
   var h = '';
-  list.slice().reverse().forEach(function (e) {
+  shown.slice().reverse().forEach(function (e) {
     var dt = e.savedAt || '';
     try { dt = new Date(e.savedAt).toLocaleString(); } catch (x) {}
     h += '<div class="saved-item">' +
@@ -750,6 +800,8 @@ function toggleSaveList() {
   var box = document.getElementById('save-list');
   var show = (box.style.display === 'none' || !box.style.display);
   box.style.display = show ? 'block' : 'none';
+  var s = document.querySelector('.saved-search');
+  if (s) s.style.display = show ? 'block' : 'none';
   if (show) renderSaved();
 }
 document.getElementById('btn-save').addEventListener('click', function () {
@@ -780,7 +832,18 @@ document.getElementById('save-list').addEventListener('click', function (ev) {
   list.forEach(function (e) { if (String(e.id) === String(id)) entry = e; });
   if (act === 'del') {
     if (!entry) return;
-    if (!confirm('«' + (entry.title || '') + '» ကို ဖျက်မလား?')) return;
+    /* tap-twice delete (no native dialog): first tap arms this record's
+       button, second tap on the same record deletes */
+    if (armedDeleteId !== String(id)) {
+      armedDeleteId = String(id);
+      btn.textContent = 'တကယ် ဖျက်မလား? ထပ်နှိပ်ပါ';
+      btn.classList.add('btn-armed');
+      clearTimeout(armedDeleteTimer);
+      armedDeleteTimer = setTimeout(function () { armedDeleteId = null; renderSaved(); }, 3500);
+      return;
+    }
+    clearTimeout(armedDeleteTimer);
+    armedDeleteId = null;
     storeSaved(list.filter(function (e) { return String(e.id) !== String(id); }));
     renderSaved();
     return;
@@ -797,6 +860,10 @@ document.getElementById('save-list').addEventListener('click', function (ev) {
     ta.scrollIntoView();
   }
 });
+(function () {
+  var s = document.querySelector('.saved-search');
+  if (s) s.addEventListener('input', function () { renderSaved(); });
+})();
 
 /* ================= init ================= */
 captureDefaults();
