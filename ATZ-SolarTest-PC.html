@@ -115,6 +115,11 @@
   .btn-load { background: #0d2137; color: #fff; }
   .btn-view { background: #b37700; color: #fff; }
   .btn-del { background: #ffd9d9; color: #a00; }
+  /* ---------- v1.9 findability: fresh-save highlight + confirmation + search ---------- */
+  .saved-item.fresh { border: 2px solid #2f9e44; background: #e9f9ee; }
+  .savenote { font-size: 13.5px; font-weight: bold; color: #0a6b1e; background: #e9f9ee;
+    border: 1px solid #8fd694; border-radius: 6px; padding: 9px 10px; margin: 8px 0; }
+  #save-tools { margin: 4px 0 10px; }
   .tgl.sm { padding: 6px 0; font-size: 13px; }
   .sgn-row { margin: 8px 0; }
   .sgn-row .sgn-label { font-size: 13.5px; margin-bottom: 4px; }
@@ -710,12 +715,16 @@
   <button class="btn btn-copy" id="btn-copy" onclick="copyReport(this)">📋 Report ကူးမယ်</button>
   <button class="btn btn-print" onclick="printPDF()">🖨 PDF ထုတ်မယ်</button>
   <button class="btn btn-save" id="btn-save" onclick="saveInspection(this)">💾 Report သိမ်းမည်</button>
+  <div class="savenote" id="save-note" style="display:none"></div>
   <button class="btn btn-add" onclick="toggleSaveList()">📂 သိမ်းထားတဲ့ Report များ (<span id="saved-count">0</span>)</button>
+  <div id="save-tools" style="display:none">
+    <input type="text" class="sv-search" placeholder="🔍 အမည် / နေရာ / Owner / Inverter ဖြင့် ရှာရန်…" oninput="onSavedSearch(this.value)">
+  </div>
   <div id="save-list" style="display:none"></div>
   <button class="btn btn-clear" id="btn-clear" onclick="armClear(this)">🗑 အားလုံးရှင်းမယ်</button>
 </div>
 
-<footer>ATZ • Solar Test v1.8</footer>
+<footer>ATZ • Solar Test v1.9</footer>
 
 <div id="print-area"></div>
 
@@ -2237,6 +2246,10 @@ function clearAll() {
   }
   document.getElementById('report-text').value = '';
   document.getElementById('print-area').innerHTML = '';
+  savedFilter = '';
+  justSavedId = null;
+  hideSaveNote();
+  renderSaved();
   try { localStorage.removeItem(DRAFT_KEY); } catch (e) {}
   document.getElementById('si-date').valueAsDate = new Date();
   addStringRow();
@@ -2619,20 +2632,47 @@ function findSaved(id) {
   for (var i = 0; i < list.length; i++) if (list[i].id === id) return list[i];
   return null;
 }
+/* ---- v1.9 findability state: UI-only (module vars, never collected into records) ---- */
+var savedFilter = '';
+var justSavedId = null;
+function showSaveNote(title) {
+  var n = document.getElementById('save-note');
+  if (!n) return;
+  n.textContent = "✔ '" + title + "' ကို သိမ်းပြီးပါပြီ — 'သိမ်းထားသော မှတ်တမ်းများ' ထဲမှာ ရှိပါတယ်";
+  n.style.display = '';
+}
+function hideSaveNote() {
+  var n = document.getElementById('save-note');
+  if (n) { n.style.display = 'none'; n.textContent = ''; }
+}
+function onSavedSearch(v) {
+  savedFilter = (v || '').trim().toLowerCase();
+  renderSaved();
+}
+function savedMatches(it) {
+  if (!savedFilter) return true;
+  var f = (it.data && it.data.fields) || {};
+  var hay = [it.title || '', f['si-project'] || '', f['si-owner'] || '',
+             f['si-location'] || '', f['si-inv-make'] || ''].join(' ').toLowerCase();
+  return hay.indexOf(savedFilter) >= 0;
+}
 function saveInspection(btn) {
   makeReport();
   var data = collectState();
   var now = new Date();
   var title = buildTitle(data) || ('Solar Report — ' + fmtDateTime(now.getTime()));
+  var newId = 's' + now.getTime();
   var list = getSavedList();
   list.unshift({
-    id: 's' + now.getTime(),
+    id: newId,
     savedAt: now.getTime(),
     title: title,
     data: data,
     reportText: document.getElementById('report-text').value
   });
   setSavedList(list);
+  justSavedId = newId;
+  showSaveNote(title);
   renderSaved();
   flashBtn(btn, '💾 သိမ်းပြီးပါပြီ ✓');
 }
@@ -2647,11 +2687,22 @@ function renderSaved() {
     box.innerHTML = '<div class="hint">သိမ်းထားသော Report မရှိသေးပါ။ Report ထုတ်ပြီး "💾 Report သိမ်းမည်" နှိပ်ပါ။</div>';
     return;
   }
+  /* stored order is newest-first (saveInspection unshifts); the filter keeps that order */
+  var shown = list.filter(savedMatches);
   var h = '';
-  list.forEach(function (it) {
+  if (savedFilter) {
+    h += '<div class="hint" style="margin-bottom:8px">🔍 ရှာဖွေမှုရလဒ်: ' + shown.length + ' ခု (စုစုပေါင်း ' + list.length + ' ခု)</div>';
+    if (!shown.length) {
+      h += '<div class="hint">🔍 "' + esc(savedFilter) + '" နှင့် ကိုက်ညီသော မှတ်တမ်း မတွေ့ပါ — တခြား အမည် / နေရာ ဖြင့် ရှာကြည့်ပါ။</div>';
+      box.innerHTML = h;
+      return;
+    }
+  }
+  shown.forEach(function (it) {
     var armed = armedDelId === it.id;
-    h += '<div class="saved-item">' +
-      '<div class="saved-title">' + esc(it.title) + '</div>' +
+    var fresh = justSavedId === it.id;
+    h += '<div class="saved-item' + (fresh ? ' fresh' : '') + '">' +
+      '<div class="saved-title">' + (fresh ? '🆕 ' : '') + esc(it.title) + '</div>' +
       '<div class="saved-date">🗓 ' + esc(fmtDateTime(it.savedAt)) + ' သိမ်းထားသည်</div>' +
       '<div class="saved-actions">' +
       '<button class="btn-load" data-act="open" data-id="' + it.id + '">📂 ဖွင့်မည်</button>' +
@@ -2664,16 +2715,22 @@ function renderSaved() {
 function toggleSaveList() {
   var box = document.getElementById('save-list');
   if (!box) return;
-  box.style.display = box.style.display === 'none' ? '' : 'none';
+  var open = box.style.display === 'none';
+  box.style.display = open ? '' : 'none';
+  var tools = document.getElementById('save-tools');
+  if (tools) tools.style.display = open ? '' : 'none';
   renderSaved();
 }
 function loadSaved(id) {
   var it = findSaved(id);
   if (!it) return;
+  justSavedId = null;
+  hideSaveNote();
   applyState(it.data);
   evalAll();
   makeReport();
   saveDraft();
+  renderSaved();
   window.scrollTo(0, 0);
 }
 function viewSaved(id) {
@@ -2694,6 +2751,7 @@ function delSaved(id) {
   }
   armedDelId = null;
   setSavedList(getSavedList().filter(function (x) { return x.id !== id; }));
+  if (id === justSavedId) { justSavedId = null; hideSaveNote(); }
   renderSaved();
 }
 document.addEventListener('click', function (e) {

@@ -100,10 +100,20 @@
   .btn-open { background: #1d4e89; color: #fff; }
   .btn-view { background: #e2e8f0; color: #334155; }
   .btn-del { background: #fee2e2; color: #b91c1c; }
+  .btn-armed { background: #e03131 !important; color: #fff !important; }
   .mini-btn { flex: 0 0 auto !important; padding: 8px 12px !important; font-size: 13px !important; }
   .saved-pre { white-space: pre-wrap; word-break: break-word; font-family: inherit; font-size: 13px;
                background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px;
                margin: 8px 0 4px; max-height: 50vh; overflow: auto; }
+  .saved-search { margin-top: 10px; }
+  #saved-confirm { display: none; margin-top: 10px; background: #dcfce7; color: #15803d;
+                   border: 1px solid #16a34a; border-radius: 8px; padding: 9px 10px;
+                   font-size: 13.5px; font-weight: 700; }
+  #saved-confirm.show { display: block; }
+  .saved-item.just-saved { background: #f0fdf4; border: 1px solid #16a34a; border-radius: 8px;
+                           padding-left: 8px; padding-right: 8px; }
+  .saved-item .newtag { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px;
+                        background: #dcfce7; color: #15803d; margin-left: 6px; white-space: nowrap; }
 </style>
 </head>
 <body>
@@ -357,7 +367,9 @@
   <div class="card">
     <h2>📂 သိမ်းထားသော အစီရင်ခံစာများ <span class="pill" id="saved-count">0</span></h2>
     <button class="btn-save" id="btn-save">💾 သိမ်းမည်</button>
+    <div id="saved-confirm"></div>
     <div class="hint">ယခု ဖြည့်ထားသော စစ်ဆေးချက်ကို သိမ်းထားပြီး၊ နောက်မှ တစ်ခုချင်း ပြန်ဖွင့်၍ စစ်နိုင်ပါတယ်။ ဖြည့်နေဆဲ အချက်အလက်များလည်း အလိုအလျောက် မှတ်ထားပေးပါတယ်။</div>
+    <input class="saved-search" type="text" placeholder="🔍 မှတ်တမ်း ရှာမည် — အမည် / Project / Sr.No ရိုက်ပါ">
     <div id="saved-list"></div>
     <div id="saved-view-wrap" hidden>
       <div style="display:flex;align-items:center;gap:8px;margin-top:12px">
@@ -368,7 +380,7 @@
     </div>
   </div>
 
-  <footer>ATZ • Transformer (500) kVA နှင့်အထက် • v2.5</footer>
+  <footer>ATZ • Transformer (500) kVA နှင့်အထက် • v2.8</footer>
 </main>
 <div id="print-area">
   <div id="print-doc"></div>
@@ -899,8 +911,25 @@
   });
 
   var KEEP = ["tol-vr", "tol-wr", "tol-ir", "tol-dar", "tol-vg", "tol-vgr", "tol-oil", "tol-er-body", "tol-er-neutral", "tol-er-la", "tol-cb", "vr-tapstep", "vr-tapmain", "ir-tvhv", "ir-tvlv"];
+  /* tap-twice arm for the destructive clear button (no native confirm —
+     native dialogs are dead in this WebView shell) */
+  var clearArmTimer = null;
   $("btn-clear").addEventListener("click", function () {
-    if (!confirm("ထည့်ထားသမျှ အားလုံး ရှင်းလင်းမလား? (စံနှုန်းများ ချန်ထားမည်)")) return;
+    var b = this;
+    if (!b.classList.contains("btn-armed")) {
+      b.classList.add("btn-armed");
+      b.textContent = "တကယ် အားလုံး ရှင်းလင်းမလား? ထပ်နှိပ်ပါ";
+      clearTimeout(clearArmTimer);
+      clearArmTimer = setTimeout(function () {
+        b.classList.remove("btn-armed");
+        b.textContent = "🗑 ရှင်းလင်းမယ်";
+      }, 3500);
+      return;
+    }
+    clearTimeout(clearArmTimer);
+    b.classList.remove("btn-armed");
+    b.textContent = "🗑 ရှင်းလင်းမယ်";
+    hideSaveConfirm();
     document.querySelectorAll("input, textarea, select").forEach(function (el) {
       if (el.type === "checkbox") { el.checked = false; return; }
       if (KEEP.indexOf(el.id) !== -1) return;
@@ -958,7 +987,28 @@
     if (str("tr-project")) parts.push(str("tr-project"));
     return parts.length ? parts.join(" • ") : new Date().toLocaleString();
   }
+  /* v2.7 findability: saved-list search + just-saved highlight.
+     The search input has NO id on purpose — collectForm() only stores
+     elements with ids, so the search text can never leak into a record. */
+  var savedFilter = "";
+  var justSavedId = null;
+  /* tap-twice delete arm state (no native confirm) */
+  var armedDeleteId = null, armedDeleteTimer = null;
+  var SEARCH_FIELDS = ["tr-project", "tr-srno", "tr-report", "tr-maker"];
+  function savedMatches(e) {
+    if (!savedFilter) return true;
+    var hay = [e.title || ""];
+    var fd = e.formData || {};
+    SEARCH_FIELDS.forEach(function (id) { if (fd[id]) hay.push(String(fd[id])); });
+    return hay.join(" ").toLowerCase().indexOf(savedFilter) !== -1;
+  }
+  function hideSaveConfirm() {
+    var cf = $("saved-confirm");
+    if (cf) { cf.className = ""; cf.textContent = ""; }
+  }
   function renderSaved() {
+    armedDeleteId = null;   /* any re-render disarms a pending delete tap */
+    clearTimeout(armedDeleteTimer);
     var list = loadSaved();
     var cnt = $("saved-count");
     cnt.textContent = String(list.length);
@@ -968,12 +1018,18 @@
       box.innerHTML = '<div class="hint" style="margin-top:10px">သိမ်းထားသော အစီရင်ခံစာ မရှိသေးပါ — ဖောင် ဖြည့်ပြီး «💾 သိမ်းမည်» နှိပ်ပါ</div>';
       return;
     }
+    var shown = list.filter(savedMatches);
+    if (!shown.length) {
+      box.innerHTML = '<div class="hint" style="margin-top:10px">🔍 ရှာထားသော စာနှင့် ကိုက်ညီသည့် မှတ်တမ်း မတွေ့ပါ — ရှာစာ ရှင်းပြီး ပြန်ကြည့်ပါ</div>';
+      return;
+    }
     var h = "";
-    list.slice().reverse().forEach(function (e) {
+    shown.slice().reverse().forEach(function (e) {
       var dt = e.savedAt || "";
       try { dt = new Date(e.savedAt).toLocaleString(); } catch (x) {}
-      h += '<div class="saved-item">' +
-        '<div class="saved-title">' + esc(e.title || "—") + '</div>' +
+      var fresh = justSavedId !== null && String(e.id) === String(justSavedId);
+      h += '<div class="saved-item' + (fresh ? " just-saved" : "") + '">' +
+        '<div class="saved-title">' + esc(e.title || "—") + (fresh ? '<span class="newtag">အခုပဲ သိမ်းထားသည်</span>' : "") + '</div>' +
         '<div class="saved-date">' + esc(dt) + '</div>' +
         '<div class="saved-actions">' +
           '<button class="btn-open" data-act="open" data-id="' + e.id + '">ဖွင့်မည်</button>' +
@@ -1005,12 +1061,22 @@
     list.push(entry);
     var b = $("btn-save"), old = b.textContent;
     if (storeSaved(list)) {
+      justSavedId = entry.id;
       renderSaved();
+      var cf = $("saved-confirm");
+      cf.textContent = "✔ '" + entry.title + "' ကို သိမ်းပြီးပါပြီ — 'သိမ်းထားသော အစီရင်ခံစာများ' စာရင်းရဲ့ အပေါ်ဆုံးမှာ ရှိပါတယ်";
+      cf.className = "show";
       b.textContent = "✓ သိမ်းပြီးပြီ";
     } else {
       b.textContent = "✗ မသိမ်းနိုင်ပါ (နေရာ မလုံလောက်ပါ)";
     }
     setTimeout(function () { b.textContent = old; }, 2600);
+  });
+
+  var savedSearchEl = document.querySelector(".saved-search");
+  if (savedSearchEl) savedSearchEl.addEventListener("input", function () {
+    savedFilter = savedSearchEl.value.trim().toLowerCase();
+    renderSaved();
   });
 
   $("saved-list").addEventListener("click", function (ev) {
@@ -1021,7 +1087,20 @@
     list.forEach(function (e) { if (String(e.id) === String(id)) entry = e; });
     if (act === "del") {
       if (!entry) return;
-      if (!confirm("«" + (entry.title || "") + "» ကို ဖျက်မလား?")) return;
+      /* tap-twice delete (no native confirm): first tap arms this record's
+         button, second tap on the same record deletes */
+      if (armedDeleteId !== String(id)) {
+        armedDeleteId = String(id);
+        btn.textContent = "တကယ် ဖျက်မလား? ထပ်နှိပ်ပါ";
+        btn.classList.add("btn-armed");
+        clearTimeout(armedDeleteTimer);
+        armedDeleteTimer = setTimeout(function () { armedDeleteId = null; renderSaved(); }, 3500);
+        return;
+      }
+      clearTimeout(armedDeleteTimer);
+      armedDeleteId = null;
+      if (justSavedId !== null && String(justSavedId) === String(id)) justSavedId = null;
+      hideSaveConfirm();
       storeSaved(list.filter(function (e) { return String(e.id) !== String(id); }));
       $("saved-view-wrap").hidden = true;
       renderSaved();
@@ -1029,6 +1108,8 @@
     }
     if (!entry) return;
     if (act === "open") {
+      justSavedId = null;
+      hideSaveConfirm();
       applyForm(entry.formData || {});
       saveDraft();
       $("saved-view-wrap").hidden = true;

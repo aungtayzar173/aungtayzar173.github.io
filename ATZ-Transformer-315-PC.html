@@ -43,6 +43,13 @@
   .btn-save { background: #0a6b1e; color: #fff; }
   .saved-item { border: 1px solid #d5dce5; border-radius: 8px; padding: 9px 10px; margin-bottom: 8px;
     background: #f8fafc; }
+  .saved-item.just-saved { border: 2px solid #0a6b1e; background: #e9f9ee; }
+  .saved-new-tag { display: inline-block; background: #0a6b1e; color: #fff; font-size: 11px;
+    font-weight: bold; border-radius: 8px; padding: 2px 7px; margin-left: 6px; vertical-align: middle; }
+  .saved-search { margin-bottom: 6px; }
+  #save-confirm { display: none; background: #d7f5dc; color: #0a6b1e; border: 1px solid #0a6b1e;
+    font-weight: bold; font-size: 14.5px; padding: 10px; border-radius: 8px; margin: 8px 0; }
+  .btn-armed { background: #e03131 !important; color: #fff !important; }
   .saved-title { font-weight: bold; font-size: 14.5px; color: #0d2137; }
   .saved-date { font-size: 12px; color: #666; margin: 2px 0 6px; }
   .saved-actions { display: flex; gap: 6px; }
@@ -328,15 +335,18 @@
   <button class="btn btn-copy" onclick="copyReport()">📋 Report ကူးမယ်</button>
   <button class="btn btn-save" onclick="saveInspection()">💾 သိမ်းမည်</button>
   <button class="btn btn-print" onclick="printPDF()">🖨 PDF ထုတ်မယ်</button>
-  <button class="btn btn-clear" onclick="if(confirm('အချက်အလက်အားလုံး ဖျက်မလား?'))clearAll()">🗑 အားလုံးရှင်းမယ်</button>
+  <button class="btn btn-clear" onclick="armClear(this)">🗑 အားလုံးရှင်းမယ်</button>
+  <div id="save-confirm"></div>
 </div>
 
 <div class="card">
   <h2>📂 သိမ်းထားသော အစီရင်ခံစာများ</h2>
+  <input type="text" class="saved-search" placeholder="🔍 ရှာရန် — အမည် / Sr.No / Project / Maker">
+  <div class="hint" style="margin-bottom:8px">သိမ်းထားသော မှတ်တမ်းကို အမည်၊ Sr.No၊ Project တို့ဖြင့် ရှာနိုင်ပါတယ်။</div>
   <div id="saved-list"></div>
 </div>
 
-<footer>ATZ • Transformer Test (315 နှင့်အောက်) v1.4</footer>
+<footer>ATZ • Transformer Test (315 နှင့်အောက်) v1.6</footer>
 
 <div id="print-area"></div>
 
@@ -591,7 +601,7 @@ var IR_LABELS = { hve: 'HV to Earth', lve: 'LV to Earth', hvlv: 'HV to LV' };
 var ER_LABELS = { la: 'L.A Earth', body: 'Body Earth', neutral: 'Neutral Earth' };
 
 function makeReport() {
-  var t = 'ATZ Transformer Test (315 နှင့်အောက်) v1.4 — TRANSFORMER FIELD TEST REPORT (≤315 kVA)\n';
+  var t = 'ATZ Transformer Test (315 နှင့်အောက်) v1.6 — TRANSFORMER FIELD TEST REPORT (≤315 kVA)\n';
   t += 'Project: ' + val('np-project') + ' | Sr.No: ' + val('np-srno') + '\n';
   t += 'Capacity: ' + val('np-capacity') + ' kVA | Phase: ' + val('np-phase') + ' | Frequency: ' + val('np-freq') + ' Hz\n';
   t += 'Primary Voltage: ' + val('np-priv') + ' V | Secondary Voltage: ' + val('np-secv') + ' V\n';
@@ -684,7 +694,7 @@ function copyReport() {
   ta.select();
   try { document.execCommand('copy'); } catch (e) {}
   if (navigator.clipboard) navigator.clipboard.writeText(ta.value);
-  alert('✓ ကူးယူပြီးပြီ — paste ချပါ');
+  showSaveMsg('✓ ကူးယူပြီးပြီ — paste ချပါ');
 }
 function printPDF() {
   makeReport();
@@ -707,7 +717,27 @@ function clearAll() {
   document.getElementById('print-area').innerHTML = '';
   document.getElementById('np-date').valueAsDate = new Date();
   try { localStorage.removeItem('atz315.draft.v1'); } catch (e) {}
+  justSavedId = null;
+  hideSaveMsg();
   evalAll();
+}
+/* tap-twice arm for the destructive clear button (no native confirm) */
+var armedClearTimer = null;
+function armClear(btn) {
+  if (!btn.classList.contains('btn-armed')) {
+    btn.classList.add('btn-armed');
+    btn.textContent = 'တကယ် အားလုံးရှင်းမလား? ထပ်နှိပ်ပါ';
+    clearTimeout(armedClearTimer);
+    armedClearTimer = setTimeout(function () {
+      btn.classList.remove('btn-armed');
+      btn.textContent = '🗑 အားလုံးရှင်းမယ်';
+    }, 3500);
+    return;
+  }
+  clearTimeout(armedClearTimer);
+  btn.classList.remove('btn-armed');
+  btn.textContent = '🗑 အားလုံးရှင်းမယ်';
+  clearAll();
 }
 
 /* ---------------- save / load (localStorage) ---------------- */
@@ -766,40 +796,76 @@ function findSaved(id) {
   for (var i = 0; i < list.length; i++) if (list[i].id === id) return list[i];
   return null;
 }
+/* ---------------- v1.6: findability (search / save confirmation / highlight) ---------------- */
+var savedQuery = '';        /* UI-only state — never written into saved records */
+var justSavedId = null;     /* id of the most recently saved record (highlighted in the list) */
+var armedDeleteId = null, armedDeleteTimer = null;
+
+function showSaveMsg(text) {
+  var el = document.getElementById('save-confirm');
+  if (!el) return;
+  el.textContent = text;
+  el.style.display = 'block';
+}
+function hideSaveMsg() {
+  var el = document.getElementById('save-confirm');
+  if (el) { el.style.display = 'none'; el.textContent = ''; }
+}
+function savedMatches(it, q) {
+  if (!q) return true;
+  var needle = q.toLowerCase();
+  var hay = [it.title || ''];
+  var fd = it.formData || {};
+  ['np-project', 'np-srno', 'np-capacity', 'np-maker'].forEach(function (k) {
+    if (fd[k]) hay.push(fd[k]);
+  });
+  return hay.join(' ').toLowerCase().indexOf(needle) >= 0;
+}
 function saveInspection() {
   makeReport();
   var data = collectFormData();
   var now = new Date();
   var title = buildTitle(data) || ('အစီရင်ခံစာ — ' + fmtDateTime(now.getTime()));
   var list = getSavedList();
-  list.unshift({
+  var rec = {
     id: 's' + now.getTime(),
     savedAt: now.getTime(),
     title: title,
     formData: data,
     reportText: document.getElementById('report-text').value
-  });
+  };
+  list.unshift(rec);   /* newest-first */
   setSavedList(list);
+  justSavedId = rec.id;
   renderSavedList();
-  alert('💾 သိမ်းပြီးပါပြီ — ' + title);
+  showSaveMsg('✔ \'' + title + '\' ကို သိမ်းပြီးပါပြီ — \'သိမ်းထားသော မှတ်တမ်းများ\' ထဲမှာ ရှိပါတယ်');
 }
 function renderSavedList() {
   var box = document.getElementById('saved-list');
   if (!box) return;
+  armedDeleteId = null;   /* any re-render disarms a pending delete tap */
+  clearTimeout(armedDeleteTimer);
   var list = getSavedList();
   if (!list.length) {
     box.innerHTML = '<div class="hint">သိမ်းထားသော အစီရင်ခံစာ မရှိသေးပါ။ Report ထုတ်ပြီး "💾 သိမ်းမည်" နှိပ်ပါ။</div>';
     return;
   }
+  var q = savedQuery.trim();
+  var shown = list.filter(function (it) { return savedMatches(it, q); });
+  if (!shown.length) {
+    box.innerHTML = '<div class="hint">🔍 "' + esc(q) + '" နှင့် ကိုက်ညီသော မှတ်တမ်း မတွေ့ပါ။</div>';
+    return;
+  }
   var h = '';
-  list.forEach(function (it) {
-    h += '<div class="saved-item">' +
-      '<div class="saved-title">' + esc(it.title) + '</div>' +
+  shown.forEach(function (it) {
+    var fresh = (it.id === justSavedId);
+    h += '<div class="saved-item' + (fresh ? ' just-saved' : '') + '">' +
+      '<div class="saved-title">' + esc(it.title) + (fresh ? '<span class="saved-new-tag">🆕 အသစ်</span>' : '') + '</div>' +
       '<div class="saved-date">🗓 ' + esc(fmtDateTime(it.savedAt)) + ' သိမ်းထားသည်</div>' +
       '<div class="saved-actions">' +
       '<button class="btn-load" onclick="loadSaved(\'' + it.id + '\')">📂 ဖွင့်မည်</button>' +
       '<button class="btn-view" onclick="viewSaved(\'' + it.id + '\')">📄 အစီရင်ခံ</button>' +
-      '<button class="btn-del" onclick="deleteSaved(\'' + it.id + '\')">🗑 ဖျက်မည်</button>' +
+      '<button class="btn-del" onclick="deleteSaved(\'' + it.id + '\', this)">🗑 ဖျက်မည်</button>' +
       '</div></div>';
   });
   box.innerHTML = h;
@@ -811,8 +877,10 @@ function loadSaved(id) {
   evalAll();
   makeReport();
   saveDraft();
+  justSavedId = null;
+  hideSaveMsg();
+  renderSavedList();
   window.scrollTo(0, 0);
-  alert('📂 ဖွင့်ပြီးပါပြီ — ' + it.title + '\nအချက်အလက်အားလုံး စစ်ဆေး/ပြင်ဆင်နိုင်ပါပြီ။');
 }
 function viewSaved(id) {
   var it = findSaved(id);
@@ -822,12 +890,24 @@ function viewSaved(id) {
   var rt = document.getElementById('report-text');
   if (rt.scrollIntoView) rt.scrollIntoView();
 }
-function deleteSaved(id) {
+/* tap-twice delete (no native confirm): first tap arms, second tap deletes */
+function deleteSaved(id, btn) {
   var it = findSaved(id);
   if (!it) return;
-  if (!confirm('"' + it.title + '" ကို ဖျက်မလား?')) return;
-  var list = getSavedList().filter(function (x) { return x.id !== id; });
-  setSavedList(list);
+  if (armedDeleteId !== id) {
+    armedDeleteId = id;
+    if (btn) {
+      btn.textContent = 'တကယ် ဖျက်မလား? ထပ်နှိပ်ပါ';
+      btn.classList.add('btn-armed');
+    }
+    clearTimeout(armedDeleteTimer);
+    armedDeleteTimer = setTimeout(function () { armedDeleteId = null; renderSavedList(); }, 3500);
+    return;
+  }
+  clearTimeout(armedDeleteTimer);
+  armedDeleteId = null;
+  if (justSavedId === id) justSavedId = null;
+  setSavedList(getSavedList().filter(function (x) { return x.id !== id; }));
   renderSavedList();
 }
 
@@ -853,6 +933,13 @@ if (cableSel) {
 document.querySelectorAll('input, select, textarea').forEach(function (el) {
   el.addEventListener('input', saveDraft);
   el.addEventListener('change', saveDraft);
+  el.addEventListener('input', hideSaveMsg);   /* save confirmation lasts until the next action */
+});
+/* saved-list search (input has no id on purpose: it can never leak into saved data) */
+var savedSearchEl = document.querySelector('.saved-search');
+if (savedSearchEl) savedSearchEl.addEventListener('input', function () {
+  savedQuery = savedSearchEl.value;
+  renderSavedList();
 });
 /* restore in-progress draft (if any), then defaults + first render */
 loadDraft();
