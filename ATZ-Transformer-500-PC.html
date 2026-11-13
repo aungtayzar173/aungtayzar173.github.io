@@ -317,8 +317,6 @@
       <button type="button" class="chip" id="chip-rm-3">(၃) မီတာ လိုအပ်ချက်ကြောင့် စစ်ဆေး တိုင်းတာနိုင်ခြင်း မရှိပါ။</button>
     </div>
     <textarea id="rm-text" rows="2"></textarea>
-    <label>Tested By</label>
-    <input id="rm-tested" type="text">
   </div>
 
   <div class="card">
@@ -364,6 +362,16 @@
     <button class="btn-clear" id="btn-clear">🗑 ရှင်းလင်းမယ်</button>
   </div>
 
+  <div class="card" id="card-sig">
+    <h2>✍️ လက်မှတ် (Sign-off)</h2>
+    <label>Tested By</label>
+    <input id="rm-tested" type="text">
+    <label>Checked By</label>
+    <input id="rm-checked" type="text">
+    <label>Approved By</label>
+    <input id="rm-approved" type="text">
+  </div>
+
   <div class="card">
     <h2>📂 သိမ်းထားသော အစီရင်ခံစာများ <span class="pill" id="saved-count">0</span></h2>
     <button class="btn-save" id="btn-save">💾 သိမ်းမည်</button>
@@ -380,7 +388,7 @@
     </div>
   </div>
 
-  <footer>ATZ • Transformer (500) kVA နှင့်အထက် • v2.8</footer>
+  <footer>ATZ • Transformer (500) kVA နှင့်အထက် • v2.10</footer>
 </main>
 <div id="print-area">
   <div id="print-doc"></div>
@@ -843,6 +851,8 @@
     }
     if (str("rm-text")) L.push("Remark: " + str("rm-text"));
     if (str("rm-tested")) L.push("Tested By: " + str("rm-tested"));
+    if (str("rm-checked")) L.push("Checked By: " + str("rm-checked"));
+    if (str("rm-approved")) L.push("Approved By: " + str("rm-approved"));
     L.push("");
     var vals = Object.keys(results).map(function (k) { return results[k]; });
     L.push("စုစုပေါင်းရလဒ်: " + (vals.indexOf("fail") !== -1 ? "FAIL" : vals.indexOf("pass") !== -1 ? "PASS" : "—"));

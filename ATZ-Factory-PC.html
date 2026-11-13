@@ -30,7 +30,7 @@
     display: flex; align-items: center; justify-content: space-between; gap: 8px; }
   .card h3 { margin: 14px 0 4px; font-size: 14px; color: #0d2137; }
   label { display: block; font-size: 13px; font-weight: bold; margin: 8px 0 3px; }
-  input[type=text], input[type=number], input[type=date], select, textarea {
+  input[type=text], input[type=number], select, textarea {
     width: 100%; padding: 9px; font-size: 15px; border: 1px solid #ccc;
     border-radius: 6px; background: #fff; }
   textarea { font-size: 14px; }
@@ -106,13 +106,30 @@
   #exp-banner.has-expired { background: #fdeeee; border-color: #e03131; color: #a00; }
   #save-msg { display: none; background: #e9f9ee; border: 1.5px solid #2f9e44; color: #0a6b1e;
     font-weight: bold; font-size: 14px; border-radius: 8px; padding: 9px 11px; margin: 8px 0; }
+  /* v1.6: label for the always-visible saved-search box (outside the collapsed panel) */
+  .sv-label { font-weight: bold; font-size: 15px; margin: 12px 0 4px; color: #0d2137; }
   .cb-hint { color: #a00; font-weight: bold; margin-top: 4px; }
+  /* ---------- v1.5: renewal auto-compare (vs last year's baseline) ---------- */
+  #cmp-banner { display: none; font-weight: bold; font-size: 14px; padding: 10px 12px;
+    border-radius: 10px; margin-bottom: 12px; border: 2px solid #2f9e44;
+    background: #e9f9ee; color: #0a6b1e; }
+  #cmp-banner.diff { border-color: #e03131; background: #fdeeee; color: #a00; }
+  input.cmp-diff, select.cmp-diff, textarea.cmp-diff { border-color: #e03131 !important;
+    background: #fff0f0 !important; }
+  .cmp-hint { font-size: 12px; color: #a00; font-weight: bold; margin-top: 2px; }
+  /* ---------- v1.8: DD/MM/YYYY box controls (over hidden ISO date fields) ---------- */
+  .dateboxes { display: flex; align-items: center; gap: 4px; }
+  .dateboxes input { text-align: center; padding: 9px 2px; }
+  .dateboxes .db-d, .dateboxes .db-m { flex: 0 0 54px; }
+  .dateboxes .db-y { flex: 1 1 auto; min-width: 70px; }
+  .dateboxes .db-sep { color: #888; font-weight: bold; }
+  .dateboxes.cmp-diff input { border-color: #e03131 !important; background: #fff0f0 !important; }
   .setgrid label { font-size: 12px; }
   /* ---------- print ---------- */
   #print-area { display: none; }
   @media print {
     body { background: #fff; padding: 0; }
-    .app-header, .card, .btn, #overall, .hint { display: none !important; }
+    .app-header, .card, .btn, #overall, .hint, #cmp-banner { display: none !important; }
     #print-area { display: block !important; font-size: 12px; color: #000; }
     #print-area h3 { text-align: center; margin: 4px; }
     #print-area .ph { text-align: center; font-size: 13px; font-weight: bold; }
@@ -139,16 +156,18 @@
 
 <div id="exp-banner" style="display:none"></div>
 
+<div id="cmp-banner"></div>
+
 <!-- ================= S0 · အထွေထွေ ================= -->
 <div class="card" id="card-info">
   <h2>📋 S0 · အထွေထွေ <span class="fillcount" id="info-count"></span></h2>
   <div class="row2">
     <div><label>Report No</label><input type="text" id="rep-no" placeholder="e.g. 12/2026"></div>
-    <div><label>Date</label><input type="date" id="rep-date"></div>
+    <div><label>Date (ရက်/လ/နှစ်)</label><input type="hidden" id="rep-date"><span class="dateboxes" data-for="rep-date"><input type="number" class="db db-d" inputmode="numeric" placeholder="ရက်" min="1" max="31"><span class="db-sep">/</span><input type="number" class="db db-m" inputmode="numeric" placeholder="လ" min="1" max="12"><span class="db-sep">/</span><input type="number" class="db db-y" inputmode="numeric" placeholder="နှစ်"></span></div>
   </div>
   <div class="row2">
-    <div><label>သက်တမ်းကုန်ဆုံးရက် (Permit Expiry)</label><input type="date" id="rep-expiry"></div>
-    <div></div>
+    <div><label>သက်တမ်းကုန်ဆုံးရက် (Permit Expiry) (ရက်/လ/နှစ်)</label><input type="hidden" id="rep-expiry"><span class="dateboxes" data-for="rep-expiry"><input type="number" class="db db-d" inputmode="numeric" placeholder="ရက်" min="1" max="31"><span class="db-sep">/</span><input type="number" class="db db-m" inputmode="numeric" placeholder="လ" min="1" max="12"><span class="db-sep">/</span><input type="number" class="db db-y" inputmode="numeric" placeholder="နှစ်"></span></div>
+    <div><label>စတင်မှတ်ပုံတင်သည့် ရက် (First Registration Date) (ရက်/လ/နှစ်)</label><input type="hidden" id="regdate"><span class="dateboxes" data-for="regdate"><input type="number" class="db db-d" inputmode="numeric" placeholder="ရက်" min="1" max="31"><span class="db-sep">/</span><input type="number" class="db db-m" inputmode="numeric" placeholder="လ" min="1" max="12"><span class="db-sep">/</span><input type="number" class="db db-y" inputmode="numeric" placeholder="နှစ်"></span></div>
   </div>
   <input type="hidden" id="rep-expiry-manual" value="">
   <label>စက်ရုံ အမည်</label><input type="text" id="project" placeholder="စက်ရုံ / အလုပ်ရုံ အမည်">
@@ -344,9 +363,10 @@
   <button class="btn btn-copy" id="btn-save">💾 Report သိမ်းမယ် (Save)</button>
   <button class="btn btn-add" onclick="toggleSaveList()">📂 သိမ်းထားတဲ့ Report များ (<span id="saved-count">0</span>)</button>
   <div id="save-msg"></div>
+  <div class="sv-label">💾 သိမ်းထားတဲ့ Report များ — ရှာရန်</div>
+  <input type="text" class="sv-search" placeholder="🔍 ရှာရန် — စက်ရုံ အမည် / Report No / နေရာ" oninput="onSavedSearch()">
   <div id="save-panel" style="display:none">
     <div id="saved-tools">
-      <input type="text" class="sv-search" placeholder="🔍 ရှာရန် — စက်ရုံ အမည် / Report No / နေရာ" oninput="renderSaved()">
       <div class="row2">
         <div><label>သတိပေးရက် (ရက်)</label><input type="number" id="warn-days" value="30" inputmode="numeric"></div>
         <div><label>စီစဉ်ပုံ</label><select id="saved-sort" onchange="renderSaved()">
@@ -361,7 +381,7 @@
   <button class="btn btn-clear" id="btn-clear" onclick="clearAll(this)">🗑 အားလုံးရှင်းမယ်</button>
 </div>
 
-<footer>ATZ • Factory Inspection v1.4</footer>
+<footer>ATZ • Factory Inspection v1.8</footer>
 
 <div id="print-area"></div>
 
@@ -370,7 +390,7 @@
 var APP_TITLE = 'ATZ စက်ရုံ/အလုပ်ရုံ စစ်ဆေးခြင်း';
 document.title = APP_TITLE;
 document.getElementById('app-title').textContent = APP_TITLE;
-try { document.getElementById('rep-date').valueAsDate = new Date(); } catch (e) {}
+try { document.getElementById('rep-date').value = isoOf(new Date()); } catch (e) {}
 
 /* ================= Helpers ================= */
 function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
@@ -1210,13 +1230,14 @@ function evalAll() {
     else { ov.className = 'pass'; ov.style.background = '#d7f5dc'; ov.textContent = '✓ PASS — အားလုံး အဆင်ပြေပါတယ်'; }
   }
   paintStates();
+  updateCompare();   /* v1.5: renewal auto-compare flags/banner follow every evaluation */
 }
 function paintStates() {
   document.querySelectorAll('input, select, textarea').forEach(function (el) {
     if (el.id === 'report-text') return;
     el.classList.toggle('filled', (el.value || '').trim() !== '');
   });
-  var infoIds = ['rep-no', 'rep-date', 'rep-expiry', 'project', 'location', 'supply-kv'];
+  var infoIds = ['rep-no', 'rep-date', 'rep-expiry', 'project', 'location', 'supply-kv', 'regdate'];
   var n = 0;
   infoIds.forEach(function (i) { var el = document.getElementById(i); if (el && el.value.trim() !== '') n++; });
   var cnt = document.getElementById('info-count');
@@ -1254,6 +1275,19 @@ document.addEventListener('change', function () { evalAll(); scheduleDraft(); })
 
 /* ================= Report ================= */
 function yn(v, y, n) { return v === 'yes' ? y : v === 'no' ? n : '—'; }
+/* v1.7: whole years between a first-registration date and an inspection
+   date (registration age at inspection); null when either is
+   missing/invalid or the registration date falls after the inspection
+   date — mirrors Elevator Old's liftAgeYears */
+function regAgeYears(regISO, inspISO) {
+  var a = String(regISO || '').split('-'), b = String(inspISO || '').split('-');
+  if (a.length !== 3 || b.length !== 3) return null;
+  var ay = +a[0], am = +a[1], ad = +a[2], by = +b[0], bm = +b[1], bd = +b[2];
+  if (!ay || !am || !ad || !by || !bm || !bd) return null;
+  var age = by - ay;
+  if (bm < am || (bm === am && bd < ad)) age--;
+  return age >= 0 ? age : null;
+}
 function makeReport() {
   evalAll();
   var no = document.getElementById('rep-no').value.trim();
@@ -1264,7 +1298,24 @@ function makeReport() {
   var sup = document.getElementById('supply-kv').value.trim();
   var t = APP_TITLE + ' — အစီရင်ခံစာ\n';
   t += 'Report No: ' + no + ' | Date: ' + date + ' | Factory: ' + proj + ' | Location: ' + loc +
-       (sup ? ' | Supply: ' + sup + ' kV' : '') + (expD ? ' | Permit Expiry: ' + expD : '') + '\n\n';
+       (sup ? ' | Supply: ' + sup + ' kV' : '') + (expD ? ' | Permit Expiry: ' + expD : '') + '\n';
+  /* v1.7: first registration date, plus the registration age at inspection
+     when both dates exist (mirrors Elevator Old's gi-regdate report line) */
+  var regD = document.getElementById('regdate').value;
+  if (regD) {
+    var ageY = regAgeYears(regD, date);
+    t += 'စတင်မှတ်ပုံတင်သည့် ရက်: ' + regD +
+      (ageY !== null ? ' | သက်တမ်း ' + ageY + ' နှစ်' : '') + '\n';
+  }
+  t += '\n';
+  /* v1.5: renewal drafts report what changed vs last year (the baseline
+     snapshot itself never prints — only the human-readable changes line) */
+  if (BASE) {
+    var chg = compareChanges();
+    t += 'ယခင်နှစ်နှင့် အပြောင်းအလဲ: ' + (chg.length
+      ? chg.map(function (c) { return c.label + ' ' + c.from + ' → ' + c.to; }).join('; ')
+      : 'မရှိ') + '\n\n';
+  }
   var anyFail = false, anyPass = false;
   function secVerdict(j) {
     if (!j) return '—';
@@ -1543,6 +1594,7 @@ function clearAll(btn) {
   if (!btn.classList.contains('armed')) { armBtn(btn, '⚠️ နောက်တစ်ခါ နှိပ်ရင် အချက်အလက် အားလုံး ဖျက်မယ်'); return; }
   btn.classList.remove('armed');
   btn.textContent = '🗑 အားလုံးရှင်းမယ်';
+  BASE = null;   /* v1.5: a cleared form is not a renewal draft — drop any baseline */
   try { localStorage.removeItem(DRAFT_KEY); } catch (e) {}
   document.querySelectorAll('input[id], select[id], textarea[id]').forEach(function (el) {
     if (el.id === 'report-text') return;
@@ -1555,8 +1607,9 @@ function clearAll(btn) {
     var el = document.getElementById(id);
     if (el && defs[id] !== null) el.value = defs[id];
   });
-  try { document.getElementById('rep-date').valueAsDate = new Date(); } catch (e) {}
+  try { document.getElementById('rep-date').value = isoOf(new Date()); } catch (e) {}
   syncExpiry();
+  paintDateBoxes();
   setSaveMsg('');
   lastSavedId = null;
   CABLE_SIZES.forEach(function (s) {
@@ -1577,11 +1630,178 @@ function clearAll(btn) {
   saveDraft();
 }
 
+/* ================= v1.5: renewal auto-compare =================
+   Mirrors the Elevator Old (အဟောင်း) v2.0 design: the baseline is the
+   app's OWN last-year record — no external data import. "🔁 ဒီနှစ်
+   ပြန်စစ်" snapshots the source record's spec/identity values into the
+   new draft (formData.base). While that baseline exists, every spec
+   field that differs from last year is flagged red with a "မနှစ်က: …"
+   hint, a slim banner at the top counts and names the changes, and the
+   report prints the changed fields (old → new). Measurements (earth
+   resistances, load currents R/Y/B/N, measured PF, computed totals,
+   PASS/FAIL states and checklist toggles) legitimately differ yearly
+   and are NEVER compared. Records not created by renewal carry no
+   base → no compare UI. */
+var BASE = null;   /* cmpSnapshot() of last year's record, or null */
+/* S0 identity (flat inputs in state.f) — v1.7 adds 'regdate' (first
+   registration date, an identity field like Elevator Old's gi-regdate:
+   renewal carries it and a differently-typed date flags as a typo catch) */
+var CMP_FLAT = ['project', 'location', 'supply-kv', 'regdate'];
+var CMP_FLAT_LABELS = { 'project': 'စက်ရုံ အမည်', 'location': 'လိပ်စာ', 'supply-kv': 'ဓါတ်အား ရယူမှု (kV)', 'regdate': 'စတင်မှတ်ပုံတင်သည့် ရက်' };
+/* S1 transformer-unit nameplate keys (per unit slot) + capacitor bank rating */
+var CMP_TX_KEYS = ['maker', 'serial', 'kva', 'year', 'hv', 'lv', 'vector', 'z', 'cap-kvar'];
+var CMP_TX_LABELS = { 'maker': 'Maker', 'serial': 'Serial No', 'kva': 'Rating (kVA)', 'year': 'ထုတ်လုပ်နှစ်',
+  'hv': 'HV (V)', 'lv': 'LV (V)', 'vector': 'Vector Group', 'z': 'Z (%)', 'cap-kvar': 'Capacitor Bank (kVAr)' };
+/* S2 Main DB circuit rows: breaker rating + cable size/material (+ circuit label) */
+var CMP_MDB_KEYS = ['place', 'cable', 'mat', 'brk'];
+var CMP_MDB_LABELS = { 'place': 'Circuit/နေရာ', 'cable': 'Cable (mm²)', 'mat': 'Material', 'brk': 'Breaker (A)' };
+/* S2b SDB rows: board identity + breaker/cable (R/Y/B/N loads are measurements — excluded) */
+var CMP_SDB_KEYS = ['name', 'cable', 'mat', 'brk'];
+var CMP_SDB_LABELS = { 'name': 'SDB အမည်', 'cable': 'Cable (mm²)', 'mat': 'Material', 'brk': 'Breaker (A)' };
+/* S3 machine rows: identity = name + load value + unit (the HP/kW rating) */
+var CMP_MACH_KEYS = ['name', 'load', 'unit'];
+var CMP_MACH_LABELS = { 'name': 'စက် အမည်', 'load': 'Load', 'unit': 'ယူနစ်' };
+
+function cmpStr(v) { return v === undefined || v === null ? '' : String(v); }
+/* trimmed-text compare; numeric on both sides → numeric compare,
+   so 7.5 vs 7.50 is a match */
+function cmpEq(a, b) {
+  a = cmpStr(a).trim(); b = cmpStr(b).trim();
+  if (a === b) return true;
+  if (a === '' || b === '') return false;
+  var na = Number(a), nb = Number(b);
+  return isFinite(na) && isFinite(nb) && na === nb;
+}
+function cmpDisp(k, v) {
+  v = cmpStr(v).trim();
+  if (v === '') return '–';
+  if (k === 'mat') return v === 'al' ? 'Al' : 'Cu';
+  if (k === 'unit') return v === 'hp' ? 'HP' : 'W';
+  return v;
+}
+function cmpPick(o, keys) {
+  var r = {};
+  keys.forEach(function (k) { r[k] = cmpStr(o ? o[k] : ''); });
+  return r;
+}
+/* a row/slot counts as "not there" when every identity trace is blank
+   (cable/material selects always hold a default, so they don't count) */
+function txBlank(u) { return CMP_TX_KEYS.every(function (k) { return cmpStr(u[k]).trim() === ''; }); }
+function mdbBlank(r) { return cmpStr(r.place).trim() === '' && cmpStr(r.brk).trim() === ''; }
+function sdbBlank(r) { return cmpStr(r.name).trim() === '' && cmpStr(r.brk).trim() === ''; }
+function machBlank(r) { return cmpStr(r.name).trim() === '' && cmpStr(r.load).trim() === ''; }
+function cmpTrim(list, blankFn) {
+  var out = list.slice();
+  while (out.length && blankFn(out[out.length - 1])) out.pop();
+  return out;
+}
+/* Reduce any form state (a saved record's formData, or the live form via
+   collectState) to just the compared spec/identity values. Building the
+   baseline AND the live snapshot through this one function is what keeps
+   measurements out of the baseline by construction. */
+function cmpSnapshot(s) {
+  s = s || {};
+  var f = {};
+  CMP_FLAT.forEach(function (k) { f[k] = cmpStr((s.f || {})[k]); });
+  return {
+    f: f,
+    tx: cmpTrim((s.tx || []).map(function (u) { return cmpPick(u, CMP_TX_KEYS); }), txBlank),
+    mdb: cmpTrim((s.mdb || []).map(function (r) { return cmpPick(r, CMP_MDB_KEYS); }), mdbBlank),
+    sdb: cmpTrim((s.sdb || []).map(function (r) { return cmpPick(r, CMP_SDB_KEYS); }), sdbBlank),
+    mach: cmpTrim((s.mach || []).map(function (r) { return cmpPick(r, CMP_MACH_KEYS); }), machBlank)
+  };
+}
+function cmpRowDesc(kind, r) {
+  if (kind === 'tx') return (cmpStr(r.maker).trim() || 'Transformer') + (cmpStr(r.kva).trim() ? ' ' + cmpStr(r.kva).trim() + ' kVA' : '');
+  if (kind === 'mdb') return cmpStr(r.place).trim() || 'Main DB circuit';
+  if (kind === 'sdb') return cmpStr(r.name).trim() || 'SDB';
+  return cmpStr(r.name).trim() || 'စက်';
+}
+function cmpRowEl(kind, i) {
+  var sel = kind === 'tx' ? '#tx-units .txunit' : kind === 'mdb' ? '#mdb-rows .cbrow'
+    : kind === 'sdb' ? '#sdb-rows .cbrow' : '#mach-rows .cbrow';
+  return document.querySelectorAll(sel)[i] || null;
+}
+function cmpFieldEl(kind, rowEl, k) {
+  if (!rowEl) return null;
+  var cls = kind === 'tx' ? 'u-' + k : kind === 'mdb' ? 'cb-' + k : kind === 'sdb' ? 'sdb-' + k : 'm-' + k;
+  return rowEl.querySelector('.' + cls);
+}
+/* All differences vs the baseline: {label, from, to, el} — el is the form
+   element to flag red (null for whole-row added/removed entries). Rows are
+   compared by index; a baseline row with no counterpart (or an untouched
+   blank row in its place) is a removal, and vice versa an addition. */
+function cmpDiffs() {
+  if (!BASE) return [];
+  var cur = cmpSnapshot(collectState());
+  var out = [];
+  CMP_FLAT.forEach(function (k) {
+    if (!cmpEq(cur.f[k], (BASE.f || {})[k]))
+      out.push({ label: CMP_FLAT_LABELS[k], from: cmpDisp(k, (BASE.f || {})[k]), to: cmpDisp(k, cur.f[k]), el: document.getElementById(k) });
+  });
+  [['tx', CMP_TX_KEYS, CMP_TX_LABELS, 'Transformer ', txBlank],
+   ['mdb', CMP_MDB_KEYS, CMP_MDB_LABELS, 'Main DB ', mdbBlank],
+   ['sdb', CMP_SDB_KEYS, CMP_SDB_LABELS, 'SDB ', sdbBlank],
+   ['mach', CMP_MACH_KEYS, CMP_MACH_LABELS, 'စက် ', machBlank]].forEach(function (cfg) {
+    var kind = cfg[0], keys = cfg[1], labels = cfg[2], prefix = cfg[3], blankFn = cfg[4];
+    var bs = BASE[kind] || [], cs = cur[kind] || [];
+    var n = Math.max(bs.length, cs.length);
+    for (var i = 0; i < n; i++) {
+      var b = bs[i], c = cs[i];
+      var bB = !b || blankFn(b), cB = !c || blankFn(c);
+      if (bB && cB) continue;
+      if (bB) { out.push({ label: prefix + (i + 1) + ' ထပ်တိုး (' + cmpRowDesc(kind, c) + ')', from: '–', to: cmpRowDesc(kind, c), el: null }); continue; }
+      if (cB) { out.push({ label: prefix + (i + 1) + ' ဖယ်ရှား (' + cmpRowDesc(kind, b) + ')', from: cmpRowDesc(kind, b), to: '–', el: null }); continue; }
+      var rowEl = cmpRowEl(kind, i);
+      keys.forEach(function (k) {
+        if (!cmpEq(c[k], b[k]))
+          out.push({ label: prefix + (i + 1) + ' · ' + labels[k], from: cmpDisp(k, b[k]), to: cmpDisp(k, c[k]), el: cmpFieldEl(kind, rowEl, k) });
+      });
+    }
+  });
+  return out;
+}
+function compareChanges() {
+  return cmpDiffs().map(function (d) { return { label: d.label, from: d.from, to: d.to }; });
+}
+function updateCompare() {
+  document.querySelectorAll('.cmp-diff').forEach(function (el) { el.classList.remove('cmp-diff'); });
+  document.querySelectorAll('.cmp-hint').forEach(function (el) { el.remove(); });
+  var banner = document.getElementById('cmp-banner');
+  if (!banner) return;
+  if (!BASE) { banner.style.display = 'none'; banner.textContent = ''; return; }
+  var diffs = cmpDiffs();
+  diffs.forEach(function (d) {
+    if (!d.el) return;
+    d.el.classList.add('cmp-diff');
+    var hintAfter = d.el;
+    /* v1.8: date fields live in a hidden input — flag the visible
+       DD/MM/YYYY boxes as well and put the hint under them */
+    if (d.el.type === 'hidden') {
+      var wrap = dateWrap(d.el.id);
+      if (wrap) { wrap.classList.add('cmp-diff'); hintAfter = wrap; }
+    }
+    var hint = document.createElement('div');
+    hint.className = 'cmp-hint';
+    hint.textContent = 'မနှစ်က: ' + d.from;
+    hintAfter.parentNode.insertBefore(hint, hintAfter.nextSibling);
+  });
+  banner.style.display = 'block';
+  if (!diffs.length) {
+    banner.className = '';
+    banner.textContent = '🔍 မနှစ်ကနှင့် တိုက်စစ်: အပြောင်းအလဲ မရှိ ✔';
+  } else {
+    banner.className = 'diff';
+    banner.textContent = '🔍 မနှစ်ကနှင့် တိုက်စစ်: အပြောင်းအလဲ ' + diffs.length + ' ခု — ' +
+      diffs.map(function (d) { return d.label; }).join(', ');
+  }
+}
+
 /* ================= In-app saving: draft auto-persist + saved reports ================= */
 var DRAFT_KEY = 'atzfactory.draft.v1';
 var SAVED_KEY = 'atzfactory.saved.v1';
 
-/* ---- Permit dates: inspection date + expiry (auto +1 year until hand-edited) ---- */
+/* ---- Permit dates: inspection date + expiry (auto +1 year − 1 day until hand-edited) ---- */
 function isoOf(d) {
   var m = '' + (d.getMonth() + 1), day = '' + d.getDate();
   if (m.length < 2) m = '0' + m;
@@ -1596,6 +1816,10 @@ function plusYearISO(iso) {
   if (!y || !m || !d) return '';
   var dt = new Date(y + 1, m - 1, d);
   if (dt.getMonth() !== m - 1) dt = new Date(y + 1, m, 0); /* Feb 29 -> Feb 28 */
+  /* v1.8 (office convention): the 1-year period ends the day BEFORE the
+     anniversary — 13.11.2025 + 1 year = 12.11.2026. Applied AFTER the
+     Feb-29 clamp, so 2024-02-29 -> 2025-02-27. */
+  dt.setDate(dt.getDate() - 1);
   return isoOf(dt);
 }
 function daysUntil(iso) {
@@ -1612,12 +1836,65 @@ function syncExpiry() {
   var d = document.getElementById('rep-date').value;
   var ex = document.getElementById('rep-expiry');
   if (ex) ex.value = d ? plusYearISO(d) : '';
+  paintDateBoxes('rep-expiry'); /* v1.8: keep the expiry boxes in step */
 }
 document.getElementById('rep-date').addEventListener('input', syncExpiry);
 document.getElementById('rep-date').addEventListener('change', syncExpiry);
 function markExpiryManual() { document.getElementById('rep-expiry-manual').value = '1'; }
 document.getElementById('rep-expiry').addEventListener('input', markExpiryManual);
 document.getElementById('rep-expiry').addEventListener('change', markExpiryManual);
+
+/* ================= v1.8: ရက်/လ/နှစ် (DD/MM/YYYY) box controls =================
+   Native date inputs render MM/DD/YYYY on the user's phone —
+   wrong order for Myanmar and a day/month swap risk. Each date field is
+   now a hidden input carrying the ORIGINAL id and the ISO value
+   (YYYY-MM-DD), fronted by three small boxes (ရက် / လ / နှစ်). The boxes
+   carry no ids, so collectState/applyState/saves see exactly the same
+   state.f keys as before — zero data-model change. A complete, valid
+   combination writes ISO into the hidden input and re-fires its
+   input/change events, so every existing listener (syncExpiry,
+   markExpiryManual, draft auto-save, compare) behaves as before.
+   Partial or impossible combinations (31/02) write '' — the same value
+   an incomplete native date input would hold. */
+var DATE_FIELDS = ['rep-date', 'rep-expiry', 'regdate'];
+function isoFromParts(dv, mv, yv) {
+  var d = parseInt(dv, 10), m = parseInt(mv, 10), y = parseInt(yv, 10);
+  if (!isFinite(d) || !isFinite(m) || !isFinite(y)) return '';
+  if (y < 1000 || y > 9999 || m < 1 || m > 12 || d < 1 || d > 31) return '';
+  var dt = new Date(y, m - 1, d);
+  if (dt.getFullYear() !== y || dt.getMonth() !== m - 1 || dt.getDate() !== d) return ''; /* e.g. 31/02 rolls over */
+  return isoOf(dt);
+}
+function dateWrap(id) { return document.querySelector('.dateboxes[data-for="' + id + '"]'); }
+function paintDateBoxes(id) {
+  (id ? [id] : DATE_FIELDS).forEach(function (fid) {
+    var h = document.getElementById(fid), w = dateWrap(fid);
+    if (!h || !w) return;
+    var p = String(h.value || '').split('-');
+    var ok3 = p.length === 3 && !!p[0] && !!p[1] && !!p[2];
+    w.querySelector('.db-d').value = ok3 ? String(+p[2]) : '';
+    w.querySelector('.db-m').value = ok3 ? String(+p[1]) : '';
+    w.querySelector('.db-y').value = ok3 ? p[0] : '';
+  });
+}
+function onDateBox(wrap) {
+  var id = wrap.getAttribute('data-for');
+  var h = document.getElementById(id);
+  if (!h) return;
+  var iso = isoFromParts(wrap.querySelector('.db-d').value,
+                         wrap.querySelector('.db-m').value,
+                         wrap.querySelector('.db-y').value);
+  if (h.value === iso) return;
+  h.value = iso;
+  h.dispatchEvent(new Event('input', { bubbles: true }));
+  h.dispatchEvent(new Event('change', { bubbles: true }));
+}
+document.querySelectorAll('.dateboxes').forEach(function (w) {
+  w.querySelectorAll('input').forEach(function (inp) {
+    inp.addEventListener('input', function () { onDateBox(w); });
+    inp.addEventListener('change', function () { onDateBox(w); });
+  });
+});
 function entryExpiry(e) {
   var f = (e && e.formData && e.formData.f) || {};
   return f['rep-expiry'] || '';
@@ -1677,10 +1954,15 @@ function collectState() {
       brk: qv(row, 'm-brk'), cable: qv(row, 'm-cable'), mat: qv(row, 'm-mat'), earth: qv(row, 'm-earth'),
       ewire: qv(row, 'm-ewire'), wiring: qv(row, 'm-wiring'), phaseuse: qv(row, 'm-phaseuse') });
   });
-  return { f: f, tx: tx, mdb: mdb, sdb: sdb, mach: mach };
+  var out = { f: f, tx: tx, mdb: mdb, sdb: sdb, mach: mach };
+  if (BASE) out.base = BASE;   /* v1.5: renewal baseline persists with the record */
+  return out;
 }
 function applyState(s) {
   if (!s) return;
+  /* v1.5: a state carries a renewal baseline only when it descends from a
+     renewal — opening an ordinary record or draft clears it */
+  BASE = (s.base && typeof s.base === 'object') ? s.base : null;
   var f = s.f || {};
   Object.keys(f).forEach(function (id) {
     var el = document.getElementById(id);
@@ -1696,6 +1978,9 @@ function applyState(s) {
   } else if (f['rep-expiry-manual'] === undefined && mnEl) {
     mnEl.value = '';
   }
+  /* v1.7: legacy (pre-v1.7) records/drafts carry no regdate key — clear the
+     field so a value left on screen never leaks into an old record */
+  if (f['regdate'] === undefined) { var rgEl = document.getElementById('regdate'); if (rgEl) rgEl.value = ''; }
   document.getElementById('tx-units').innerHTML = '';
   txuState = [];
   if (!s.tx || !s.tx.length) addTxUnit();
@@ -1713,6 +1998,7 @@ function applyState(s) {
   if (!s.mach || !s.mach.length) addMachRow();
   else s.mach.forEach(function (d) { addMachRow(d); });
   evalAll();
+  paintDateBoxes(); /* v1.8: hidden ISO values -> visible DD/MM/YYYY boxes */
 }
 function saveDraft() {
   try { localStorage.setItem(DRAFT_KEY, JSON.stringify(collectState())); } catch (e) {}
@@ -1828,6 +2114,19 @@ function renderSaved() {
   });
   box.innerHTML = h;
 }
+/* v1.6: the search box sits OUTSIDE the collapsed panel (always visible,
+   mirroring Elevator New v2.1) — typing a query opens the saved panel so
+   the matches are seen at once. The input has no id, so collectState()
+   never picks it up: search text cannot leak into drafts or records. */
+function onSavedSearch() {
+  var qEl = document.querySelector('.sv-search');
+  var q = qEl ? qEl.value.trim() : '';
+  if (q) {
+    var panel = document.getElementById('save-panel');
+    if (panel && (panel.style.display === 'none' || !panel.style.display)) panel.style.display = 'block';
+  }
+  renderSaved();
+}
 function toggleSaveList() {
   var panel = document.getElementById('save-panel');
   var show = (panel.style.display === 'none' || !panel.style.display);
@@ -1920,7 +2219,7 @@ function renewFrom(entry) {
   });
   var f0 = (entry.formData && entry.formData.f) || {};
   var nf = {};
-  ['project', 'location', 'supply-kv'].forEach(function (k) { if (f0[k] !== undefined) nf[k] = f0[k]; });
+  ['project', 'location', 'supply-kv', 'regdate'].forEach(function (k) { if (f0[k] !== undefined) nf[k] = f0[k]; });
   var t0 = todayISO();
   nf['rep-date'] = t0;
   nf['rep-expiry'] = plusYearISO(t0);
@@ -1933,7 +2232,10 @@ function renewFrom(entry) {
     });
     return o;
   });
-  applyState({ f: nf, tx: ntx, mdb: [], sdb: [], mach: [] });
+  /* v1.5: snapshot last year's spec values as the compare baseline — it
+     rides inside the new draft's data (formData.base) so it survives
+     draft auto-save and named save/reopen */
+  applyState({ f: nf, tx: ntx, mdb: [], sdb: [], mach: [], base: cmpSnapshot(entry.formData) });
   document.getElementById('report-text').value = '';
   saveDraft();
   setSaveMsg('🔁 "' + (entry.title || '') + '" မှ ဒီနှစ် ပြန်စစ် draft အသစ် စတင်ပြီးပါပြီ');
@@ -2001,6 +2303,7 @@ addSdbRow();
 addMachRow();
 evalAll();
 syncExpiry();
+paintDateBoxes(); /* v1.8: fresh form shows today's date in the boxes */
 try {
   var rawDraft = localStorage.getItem(DRAFT_KEY);
   if (rawDraft) applyState(JSON.parse(rawDraft));

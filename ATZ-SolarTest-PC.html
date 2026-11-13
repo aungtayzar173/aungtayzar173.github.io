@@ -119,7 +119,7 @@
   .saved-item.fresh { border: 2px solid #2f9e44; background: #e9f9ee; }
   .savenote { font-size: 13.5px; font-weight: bold; color: #0a6b1e; background: #e9f9ee;
     border: 1px solid #8fd694; border-radius: 6px; padding: 9px 10px; margin: 8px 0; }
-  #save-tools { margin: 4px 0 10px; }
+  .sv-label { font-size: 13.5px; font-weight: bold; color: #444; margin: 10px 0 4px; }
   .tgl.sm { padding: 6px 0; font-size: 13px; }
   .sgn-row { margin: 8px 0; }
   .sgn-row .sgn-label { font-size: 13.5px; margin-bottom: 4px; }
@@ -717,14 +717,13 @@
   <button class="btn btn-save" id="btn-save" onclick="saveInspection(this)">💾 Report သိမ်းမည်</button>
   <div class="savenote" id="save-note" style="display:none"></div>
   <button class="btn btn-add" onclick="toggleSaveList()">📂 သိမ်းထားတဲ့ Report များ (<span id="saved-count">0</span>)</button>
-  <div id="save-tools" style="display:none">
-    <input type="text" class="sv-search" placeholder="🔍 အမည် / နေရာ / Owner / Inverter ဖြင့် ရှာရန်…" oninput="onSavedSearch(this.value)">
-  </div>
+  <div class="sv-label">💾 သိမ်းထားသော Report များ — ရှာရန်</div>
+  <input type="text" class="sv-search" placeholder="🔍 အမည် / နေရာ / Owner / Inverter ဖြင့် ရှာရန်…" oninput="onSavedSearch(this.value)">
   <div id="save-list" style="display:none"></div>
   <button class="btn btn-clear" id="btn-clear" onclick="armClear(this)">🗑 အားလုံးရှင်းမယ်</button>
 </div>
 
-<footer>ATZ • Solar Test v1.9</footer>
+<footer>ATZ • Solar Test v2.0</footer>
 
 <div id="print-area"></div>
 
@@ -2647,6 +2646,10 @@ function hideSaveNote() {
 }
 function onSavedSearch(v) {
   savedFilter = (v || '').trim().toLowerCase();
+  if (savedFilter) {
+    var box = document.getElementById('save-list');
+    if (box && box.style.display === 'none') box.style.display = '';
+  }
   renderSaved();
 }
 function savedMatches(it) {
